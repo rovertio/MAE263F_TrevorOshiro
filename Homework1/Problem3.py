@@ -1,116 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from BendingFun import getFbP2
-from StrechingFun import getFsP2
-
-
-# Inputs (SI units)
-# number of vertices
-nv = 50 # Odd vs even number should show different behavior
-ndof = 2*nv
-
-# Time step
-dt = 1e-2
-
-#Load Value
-P = np.zeros(2*nv)
-midNode = int((nv + 1) / 2)
-P[midNode] = 20000
-
-# Rod Length
-RodLength = 0.10
-
-# Discrete length
-deltaL = RodLength / (nv - 1)
-
-# Radius of spheres
-R = np.zeros(nv)  # Vector of size N - Radius of N nodes
-R[:] = 0.005 # deltaL / 10: Course note uses deltaL/10
-midNode = int((nv + 1) / 2)
-R[midNode -1 ] = 0.025
-
-# Densities
-rho_metal = 7000
-rho_gl = 1000
-rho = rho_metal - rho_gl
-
-# Cross-sectional radius of rod
-r0 = 1e-3
-
-# Young's modulus
-Y = 1e9
-
-# Viscosity
-visc = 1000.0
-
-# Maximum number of iterations in Newton Solver
-maximum_iter = 100
-
-# Total simulation time (it exits after t=totalTime)
-totalTime = 1
-
-# Indicate whether images should be saved
-saveImage = 0
-
-# How often the plot should be saved?
-# plotStep = 50
-
-# Utility quantities
-ne = nv - 1
-EI = Y * np.pi * r0**4 / 4
-EA = Y * np.pi * r0**2
-
-# Tolerance on force function
-tol = EI / RodLength**2 * 1e-3  # small enough force that can be neglected
-
-# Geometry of the rod
-nodes = np.zeros((nv, 2))
-for c in range(nv):
-    nodes[c, 0] = c * RodLength / ne
-
-# Compute Mass
-m = np.zeros(ndof)
-for k in range(nv):
-  m[2*k] = 4 / 3 * np.pi * R[k]**3 * rho_metal # Mass for x_k
-  m[2*k+1] = m[2*k] # Mass for y_k
-
-mMat = np.diag(m)  # Convert into a diagonal matrix
-
-# Gravity
-W = np.zeros(ndof)
-g = np.array([0, -9.8])  # m/s^2 - gravity
-for k in range(nv):
-  W[2*k]   = m[2*k] * g[0] # Weight for x_k
-  W[2*k+1] = m[2*k] * g[1] # Weight for y_k
-
-# Viscous damping matrix, C
-C = np.zeros((ndof, ndof))
-for k in range(nv):
-  C[2*k,2*k]   = 6 * np.pi * visc * R[k]
-  C[2*k+1, 2*k+1]   = 6 * np.pi * visc * R[k]
-
-# Initial conditions
-q0 = np.zeros(ndof)
-for c in range(nv):
-    q0[2 * c] = nodes[c, 0]
-    q0[2 * c + 1] = nodes[c, 1]
-
-q = q0.copy()
-u = (q - q0) / dt
-
-
-all_DOFs = np.arange(ndof)
-fixed_index = np.array([0, 1, len(q) - 1])
-
-# Get the difference of two sets using np.setdiff1d
-free_index = np.setdiff1d(all_DOFs, fixed_index)
-
+from HelperFunctions.BendingFun import getFbP2
+from HelperFunctions.StrechingFun import getFsP2
 
 
 def objfun(q_guess, q_old, u_old, dt, tol, maximum_iter,
            m, mMat,  # inertia
            EI, EA,   # elastic stiffness
-           W, P, C,     # external force
+           W, P,     # external force
            deltaL,
            free_index): # free_index indicates the DOFs that evolve under equations of motion
 
@@ -127,18 +24,19 @@ def objfun(q_guess, q_old, u_old, dt, tol, maximum_iter,
         Fs, Js = getFsP2(q_new, EA, deltaL)
 
         # Viscous force
-        Fv = -C @ (q_new - q_old) / dt
-        Jv = -C / dt
+        # Fv = -C @ (q_new - q_old) / dt
+        # Jv = -C / dt
 
         # Load force
         Fp = P
 
         # Equation of motion
-        f = m * (q_new - q_old) / dt**2 - m * u_old / dt - (Fb + Fs + W + Fv)
+        # f = m * (q_new - q_old) / dt**2 - m * u_old / dt - (Fb + Fs + W + Fv)
+        f = m * (q_new - q_old) / dt**2 - m * u_old / dt - (Fb + Fs + Fp)
 
         # Manipulate the Jacobians
-        J = mMat / dt**2 - (Jb + Js + Jv)
-        # J = mMat / dt**2 - (Jb + Js)
+        # J = mMat / dt**2 - (Jb + Js + Jv)
+        J = mMat / dt**2 - (Jb + Js)
 
         # We have to separate the "free" parts of f and J
         f_free = f[free_index]
@@ -165,78 +63,238 @@ def objfun(q_guess, q_old, u_old, dt, tol, maximum_iter,
 
     return q_new, flag
 
+def mainloop(Nsteps, dt, q0, q, u,
+             tol, maximum_iter,
+             m, mMat,  # inertia
+             EI, EA,   # elastic stiffness
+             W, load,     # external force
+             deltaL, RodLength,
+             ndof, free_index):
+  
+  # Load Value
+  P = np.zeros(ndof)
+  P_app = 0.75                            # Load application location
+  app_ind = int((P_app/RodLength)*ndof)
+  if app_ind % 2 == 0:
+      app_ind = app_ind - 1
+  P[app_ind] = -load
 
-# Number of time steps
-Nsteps = round(totalTime / dt) + 1
+  ctime = 0
+  all_pos = np.zeros(Nsteps)
 
-ctime = 0
+  for timeStep in range(1, Nsteps):  # Python uses 0-based indexing, hence range starts at 1
+      
+      if round(ctime,2)%0.1 == 0:
+         print(f't={ctime:.6f}')
 
-all_pos = np.zeros(Nsteps)
-all_posmid = np.zeros(Nsteps)
-all_v = np.zeros(Nsteps)
-midAngle = np.zeros(Nsteps)
+      q, error = objfun(q0, q0, u, dt, tol, maximum_iter,
+            m, mMat,  # inertia
+            EI, EA,   # elastic stiffness
+            W, P,     # external force
+            deltaL,
+            free_index) # free_index indicates the DOFs that evolve under equations of motion
 
-for timeStep in range(1, Nsteps):  # Python uses 0-based indexing, hence range starts at 1
-    print(f't={ctime:.6f}')
+      if error < 0:
+          print('Could not converge. Sorry')
+          break  # Exit the loop if convergence fails
 
-    q, error = objfun(q0, q0, u, dt, tol, maximum_iter,
-           m, mMat,  # inertia
-           EI, EA,   # elastic stiffness
-           W, P, C,     # external force
-           deltaL,
-           free_index) # free_index indicates the DOFs that evolve under equations of motion
+      u = (q - q0) / dt  # velocity
+      ctime += dt  # current time
 
-    if error < 0:
-        print('Could not converge. Sorry')
-        break  # Exit the loop if convergence fails
+      # Update q0
+      q0 = q
 
-    u = (q - q0) / dt  # velocity
-    ctime += dt  # current time
+      all_pos[timeStep] = (-1) * np.max((-1)*q[1:len(q)-1:2])  # Python uses 0-based indexing
+      # all_posmid[timeStep] = q[app_ind]  # Python uses 0-based indexing
 
-    # Update q0
-    q0 = q
+  return q, all_pos
 
-    all_pos[timeStep] = (-1) * np.max((-1)*q[1:len(q)-1:2])  # Python uses 0-based indexing
-    all_posmid[timeStep] = q[2*midNode-1]  # Python uses 0-based indexing
+def EulerCalc(P, d, L, Y, I):
+   c = np.min([d, (L-d)])
+   y_max = (P*c*(L**2 - c**2)**1.5) / (9*np.sqrt(3)*Y*I*L)
+   return y_max
 
-    # all_v[timeStep] = u[2*midNode-1]
-    # Angle at the center
-    # vec1 = np.array([q[2*midNode-2], q[2*midNode-1], 0]) - np.array([q[2*midNode-4], q[2*midNode-3], 0])
-    # vec2 = np.array([q[2*midNode], q[2*midNode+1], 0]) - np.array([q[2*midNode-2], q[2*midNode-1], 0])
-    # midAngle[timeStep] = np.degrees(np.arctan2(np.linalg.norm(np.cross(vec1, vec2)), np.dot(vec1, vec2)))
+def plottingDis(q, totalTime, load, Nsteps, all_pos, rel_load, q_max, eu_q_max):
+
+  # Plot
+  x1 = q[::2]  # Selects every second element starting from index 0
+  x2 = q[1::2]  # Selects every second element starting from index 1
+  h1 = plt.figure(1)
+  plt.clf()  # Clear the current figure
+  plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
+  plt.title('Final deformed shape of 50 node falling beam at time ' + 
+            str(totalTime) + 's under ' + str(2000) + 'N load')  # Format the title with the current time
+  plt.axis('equal')  # Set equal scaling
+  plt.xlabel('x [m]')
+  plt.ylabel('y [m]')
+  plot1_name = '50nodeDeformation' + str(totalTime) + 'sec' + str(load) + 'Nload.png'
+  plt.savefig('Homework1/Problem3_plots/' + str(plot1_name))
+
+  plt.figure(2)
+  t = np.linspace(0, totalTime, Nsteps)
+  plt.plot(t, all_pos)
+  plt.title('Maximum vertical displacement vs. time under ' + str(2000) + 'N load')
+  plt.xlabel('Time, t [s]')
+  plt.ylabel('Displacement, $\\delta$ [m]')
+  plot2_name = '50nodeMaxY' + str(totalTime) + 'sec' + str(load) + 'Nload.png'
+  plt.savefig('Homework1/Problem3_plots/' + str(plot2_name))
+
+  plt.figure(3)
+  plt.plot(rel_load, q_max, label = "Maximum Simulation Displacements")
+  plt.plot(rel_load, eu_q_max, label = "Maximum Euler Displacements")
+  plt.title('Comparison between Euler and simulation displacement values')
+  plt.xlabel('Load, P [N]')
+  plt.ylabel('Displacement, $\\delta$ [m]')
+  plt.legend()
+  plot3_name = '50nodeEulerComparison' + str(totalTime) + 'sec' + str(rel_load[-1]) + 'Maxload.png'
+  plt.savefig('Homework1/Problem3_plots/' + str(plot3_name))
+
+  plt.show()
+
+def main(max_load, totalTime, dt):
+  # Inputs (SI units)
+  # number of vertices
+  nv = 50 # Odd vs even number should show different behavior
+  ndof = 2*nv
+  ne = nv - 1
+
+  # Rod Length
+  RodLength = 1
+  # Discrete length
+  deltaL = RodLength / (nv - 1)
+  # Outer Cross-sectional radius of rod
+  r0 = 0.013
+  # Inner Cross-sectional radius of rod
+  ri = 0.011
+
+  # Geometry of the rod
+  nodes = np.zeros((nv, 2))
+  for c in range(nv):
+      nodes[c, 0] = c * RodLength / ne
+
+  
+  rho_metal = 2700     # Densities
+  Y = 70e9             # Young's modulus
+  # Viscosity
+  # visc = 1000.0
+  # Stiffness quantities
+  Inertia = np.pi * (r0**4 - ri**4) / 4
+  EI = Y * Inertia
+  EA = Y * np.pi * (r0**2 - ri**2)
 
 
+  # Compute Mass
+  m = np.zeros(ndof)
+  for k in range(nv):
+    # m[2*k] = 4 / 3 * np.pi * R[k]**3 * rho_metal # Mass for x_k
+    m[2*k] = (np.pi * (r0**2 - ri**2) * RodLength * rho_metal) / (nv - 1) # Mass for x_k
+    m[2*k+1] = m[2*k] # Mass for y_k
+  mMat = np.diag(m)  # Convert into a diagonal matrix
 
-# Plot
+  # Gravity
+  W = np.zeros(ndof)
+  g = np.array([0, -9.8])               # m/s^2 - gravity
+  for k in range(nv):
+    W[2*k]   = m[2*k] * g[0]            # Weight for x_k
+    W[2*k+1] = m[2*k] * g[1]            # Weight for y_k
+  # print(W)
 
-x1 = q[::2]  # Selects every second element starting from index 0
-x2 = q[1::2]  # Selects every second element starting from index 1
-h1 = plt.figure(1)
-plt.clf()  # Clear the current figure
-plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-plt.title('Final deformed shape of 50 node falling beam at time ' + str(totalTime) + 's')  # Format the title with the current time
-plt.axis('equal')  # Set equal scaling
-plt.xlabel('x [m]')
-plt.ylabel('y [m]')
-plt.savefig('50NodefallingBeamFinalForm' + str(totalTime) + '.png')
+  # Viscous damping matrix, C
+  # C = np.zeros((ndof, ndof))
+  # for k in range(nv):
+  #   C[2*k,2*k]   = 6 * np.pi * visc * R[k]
+  #   C[2*k+1, 2*k+1]   = 6 * np.pi * visc * R[k]
+
+  # Load Value
+  P = np.zeros(ndof)
+  P_app = 0.75                            # Load application location
+  load = 2000
+  app_ind = int((P_app/RodLength)*ndof)
+  if app_ind % 2 == 0:
+      app_ind = app_ind - 1
+  P[app_ind] = -load
+
+  # Maximum number of iterations in Newton Solver
+  maximum_iter = 100
+  # Tolerance on force function
+  tol = EI / RodLength**2 * 1e-3  # small enough force that can be neglected
+  Nsteps = round(totalTime / dt) + 1             # Number of time steps
+
+  # Initial conditions
+  q0 = np.zeros(ndof)
+  for c in range(nv):
+      q0[2 * c] = nodes[c, 0]
+      q0[2 * c + 1] = nodes[c, 1]
+
+  q = q0.copy()
+  u = (q - q0) / dt
 
 
-plt.figure(2)
-t = np.linspace(0, totalTime, Nsteps)
-plt.plot(t, all_pos)
-plt.title('Maximum vertical displacement vs. time')
-plt.xlabel('Time, t [s]')
-plt.ylabel('Displacement, $\\delta$ [m]')
-plt.savefig('50NodefallingBeamMaxY' + str(totalTime) + '.png')
+  all_DOFs = np.arange(ndof)
+  fixed_index = np.array([0, 1, 2*nv - 1])
+  # Get the difference of two sets using np.setdiff1d
+  free_index = np.setdiff1d(all_DOFs, fixed_index)
 
-plt.figure(3)
-t = np.linspace(0, totalTime, Nsteps)
-plt.plot(t, all_posmid)
-plt.title('Vertical displacement vs. time')
-plt.xlabel('Time, t [s]')
-plt.ylabel('Displacement, $\\delta$ [m]')
-plt.savefig('50NodefallingBeam' + str(totalTime) + '.png')
+  q, all_pos = mainloop(Nsteps, dt, q0, q, u,
+             tol, maximum_iter,
+             m, mMat,  # inertia
+             EI, EA,   # elastic stiffness
+             W, 2000,     # external force
+             deltaL, RodLength,
+             ndof, free_index)
+  print("Simulation with 2000N completed")
 
+  
+  q2, all_pos2 = mainloop(Nsteps, dt, q0, q, u,
+             tol, maximum_iter,
+             m, mMat,  # inertia
+             EI, EA,   # elastic stiffness
+             W, 20000,     # external force
+             deltaL, RodLength,
+             ndof, free_index)
+  print("Simulation with 20000N completed")
 
+  
+  max_inc = 10                        # number of steps to plot the y_max relation
+  force_inc = max_load/max_inc        # increments of the force plot
+  rel_load = force_inc*np.linspace(0, max_inc, max_inc + 1)
+  q_max = np.zeros(max_inc + 1)
+  eu_q_max = np.zeros(max_inc + 1)
 
-plt.show()
+  for ii in range(max_inc + 1):
+     plot_load = rel_load[ii]
+     q_pl, all_pos_pl = mainloop(Nsteps, dt, q0, q, u,
+             tol, maximum_iter,
+             m, mMat,  # inertia
+             EI, EA,   # elastic stiffness
+             W, plot_load,     # external force
+             deltaL, RodLength,
+             ndof, free_index)
+     q_max[ii] = -all_pos_pl[-1]
+     
+     qeu = EulerCalc(plot_load, 0.75, 1, Y, Inertia)
+     eu_q_max[ii] = qeu
+     print("Calculations for load value {} finished".format(f"{plot_load}{"N"}"))
+     
+  # print(q_max)
+  # print(eu_q_max)
+  part1_ans = round(EulerCalc(2000, 0.75, 1, Y, Inertia), 3)
+  part1_sim = round(all_pos[-1], 3)
+
+  part2_ans = round(EulerCalc(20000, 0.75, 1, Y, Inertia), 3)
+  part2_sim = round(all_pos2[-1], 3)
+
+  print('Euler approximation at 2000N: ' + str(part1_ans) + 'm')
+  print('Simulation displacement at 2000N: ' + str(part1_sim) + 'm')\
+  
+  print('Euler approximation at 20000N: ' + str(part2_ans) + 'm') 
+  print('Simulation displacement at 20000N: ' + str(part2_sim) + 'm')
+
+  plottingDis(q, totalTime, load, Nsteps, all_pos, rel_load, q_max, eu_q_max)
+
+if __name__ == "__main__":
+   in_load = float(input('Enter maximum force for optional part (Default is 30000): ').strip() or '30000')
+   in_time = float(input('Enter simulation time (Default is 1s): ').strip() or '1')
+   in_step = float(input('Enter time step (Default is 0.01s): ').strip() or '0.01')
+
+   main(in_load, in_time, in_step)

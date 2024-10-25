@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from OpFun import crossMat
+from HelperFunctions.OpFun import crossMat
 
 
 def gradEb(xkm1, ykm1, xk, yk, xkp1, ykp1, curvature0, l_k, EI):
