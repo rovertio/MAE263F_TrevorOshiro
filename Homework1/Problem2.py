@@ -116,6 +116,8 @@ def plotting(totalTime, Nsteps, q, all_pos, all_v):
 
   plt.figure(3)
   plt.plot(t, all_v)
+  plt.plot(t[-1], all_v[-1], 'ko')
+  plt.text(t[int(len(t)*0.6)], -0.0035, 't_vel: ' + str(round(all_v[-1], 5)) + ' [m/s]')
   plt.title('Vertical velocity vs. time')
   plt.xlabel('Time, t [s]')
   plt.ylabel('Velocity, v [m/s]')

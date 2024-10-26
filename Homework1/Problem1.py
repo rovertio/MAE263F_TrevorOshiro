@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 from HelperFunctions.BendingFun import getFbP1
 from HelperFunctions.StrechingFun import getFsP1
@@ -66,16 +67,19 @@ def expMethod(q_guess, q_old, u_old, dt, tol, maximum_iter,
         # Jv = -C / dt
         
         # Explicit form: for each ball
-        q_new = np.zeros(len(q_old))
-        for i in range(3):
-            x_ind = 2*i
-            y_ind = 2*i + 1
-            q_new[x_ind] = q_old[x_ind] + (dt**2/m[x_ind])*(((m[x_ind]/dt)*u_old[x_ind]) - (-Fb[x_ind] + -Fs[x_ind]) - (Fv[x_ind]))
-            q_new[y_ind] = q_old[y_ind] + (dt**2/m[y_ind])*(((m[y_ind]/dt)*u_old[y_ind]) - (-Fb[y_ind] + -Fs[y_ind] + -W[y_ind]) - (Fv[y_ind]))
+        # q_new = np.zeros(len(q_old))
+
+        q_new = q_old + dt*u_old + dt**2 * (Fb + Fs + W + Fv)/ m
+
+        # for i in range(3):
+        #     x_ind = 2*i
+        #     y_ind = 2*i + 1
+        #     q_new[x_ind] = q_old[x_ind] + (dt**2/m[x_ind])*(((m[x_ind]/dt)*u_old[x_ind]) - (-Fb[x_ind] + -Fs[x_ind]) - (Fv[x_ind]))
+        #     q_new[y_ind] = q_old[y_ind] + (dt**2/m[y_ind])*(((m[y_ind]/dt)*u_old[y_ind]) - (-Fb[y_ind] + -Fs[y_ind] + -W[y_ind]) - (Fv[y_ind]))
 
         # q_new = q_old + (dt)*((u_old) - (dt/m)*((-Fb + -Fs + -W) - Fv))
-        print(q_new)
-        
+        # print(q_new)
+
         return q_new 
 
 
@@ -90,24 +94,36 @@ def mainloop(sim, ctime, Nsteps, dt, q0, q, u,
     all_v = np.zeros(Nsteps)        # Tracks y velocity of R2
     midAngle = np.zeros(Nsteps)     # Tracks mid angle at R2
 
+    x_plot = np.zeros((6, 3))
+    y_plot = np.zeros((6, 3))
+    time_stamps = np.zeros(6)
+    plot_ind = 0
+    ttol = 0
+
     x1 = q[::2]  # Selects every second element starting from index 0
     x2 = q[1::2]  # Selects every second element starting from index 1
-    h1 = plt.figure(1)
+    #h1 = plt.figure(1)
     plt.clf()  # Clear the current figure
     plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-    plt.title('Structure deformation at time ' + str(0) + "s")  # Format the title with the current time
+    plt.title(str(sim) + ' method Structure deformation at time ' + str(0) + "s")  # Format the title with the current time
     plt.axis('equal')  # Set equal scaling
     plt.xlabel('x [m]')
     plt.ylabel('y [m]')
     plot1_name = str(sim) +'3nodeDeformation_0sec.png'
     plt.savefig('Homework1/Problem1_plots/' + str(plot1_name))
+    x_plot[plot_ind][:] = x1
+    y_plot[plot_ind][:] = x2
+    time_stamps[plot_ind] = ctime
+
 
     for timeStep in range(1, Nsteps):  # Python uses 0-based indexing, hence range starts at 1
-        #print(f't={ctime:.6f}')
+        print(f't={ctime:.6f}')
         #print(timeStep)
 
         if sim == 'Implicit':
             q, error = objfun(q0, q0, u, dt, tol, maximum_iter, m, mMat, EI, EA, W, C, deltaL)
+
+            ttol == 0
 
             if error < 0:
                 print('Could not converge. Sorry')
@@ -118,6 +134,7 @@ def mainloop(sim, ctime, Nsteps, dt, q0, q, u,
                             EI, EA,   # elastic stiffness
                             W, C,     # external force
                             deltaL)
+            ttol = 0.001
 
         u = (q - q0) / dt  # velocity
         ctime += dt  # current time
@@ -127,23 +144,34 @@ def mainloop(sim, ctime, Nsteps, dt, q0, q, u,
 
         # rctime = np.round(ctime, 8)
         rctime = np.round(ctime, 3)
-        print(rctime)
+        #print(plot_pts)
+        # print(plot_ind)
+        if math.isclose(rctime, 0.05, abs_tol = ttol) or math.isclose(rctime,0.01, abs_tol = ttol) \
+            or math.isclose(rctime,0.1, abs_tol = ttol) \
+            or math.isclose(rctime,1.00, abs_tol = ttol) or math.isclose(rctime,10.00, abs_tol = ttol):
 
-        if rctime == 0.01 or rctime == 0.05 or rctime == 0.10 or rctime == 1.00 or rctime == 10.00:
-            x1 = q[::2]  # Selects every second element starting from index 0
-            x2 = q[1::2]  # Selects every second element starting from index 1
-            h1 = plt.figure(1)
-            plt.clf()  # Clear the current figure
-            plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-            plt.title('Structure deformation at time ' + str(rctime) + "s")  # Format the title with the current time
-            plt.axis('equal')  # Set equal scaling
-            plt.xlabel('x [m]')
-            plt.ylabel('y [m]')
-            plot_name = str(sim) + '3nodeDeformation_{}sec.png'.format(f'{rctime}')
-            plt.savefig('Homework1/Problem1_plots/' + str(plot_name))
-            # plt.show()  # Display the figure
-           
+            if (rctime - time_stamps[plot_ind]) > 0.009:
+                plot_ind = plot_ind + 1
+                xp = q[::2]  # Selects every second element starting from index 0
+                yp = q[1::2]  # Selects every second element starting from index 1
+                x_plot[plot_ind][:] = q[::2]
+                y_plot[plot_ind][:] = q[1::2]
+                time_stamps[plot_ind] = np.round(rctime,2)
+                #print(x)
+                #print(y)
 
+                #h1 = plt.figure(1)
+                plt.clf()  # Clear the current figure
+                plt.plot(xp, yp, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
+                plt.title(str(sim) + ' method Structure deformation at time ' + str(time_stamps[plot_ind]) + "s")  # Format the title with the current time
+                plt.axis('equal')  # Set equal scaling
+                plt.xlabel('x [m]')
+                plt.ylabel('y [m]')
+                plot_name = str(sim) + '3nodeDeformation_{}sec.png'.format(f'{time_stamps[plot_ind]}')
+                plt.savefig('Homework1/Problem1_plots/' + str(plot_name))
+                # plt.show()  # Display the figure
+            else:
+                pass
 
         all_pos[timeStep] = q[3]  # Python uses 0-based indexing
         all_v[timeStep] = u[3]
@@ -155,11 +183,12 @@ def mainloop(sim, ctime, Nsteps, dt, q0, q, u,
 
     print("Finished " + str(sim) + " method simulation")
 
+    plot_ind = 0
 
-    return all_pos, all_v, midAngle
+    return all_pos, all_v, midAngle, x_plot, y_plot, time_stamps
 
 
-def plotting(sim, totalTime, Nsteps, all_pos, all_v, midAngle):
+def plotting(sim, totalTime, Nsteps, all_pos, all_v, midAngle, x_plot, y_plot, time_stamps):
     plt.figure(1)
     plt.clf() 
     t = np.linspace(0, totalTime, Nsteps)
@@ -171,7 +200,10 @@ def plotting(sim, totalTime, Nsteps, all_pos, all_v, midAngle):
     plt.savefig('Homework1/Problem1_plots/' + str(plot1_name))
 
     plt.figure(2)
+    plt.clf()
     plt.plot(t, all_v)
+    plt.plot(t[-1], all_v[-1], 'ko')
+    plt.text(t[int(0.6*len(t))], -0.005, 't_vel: ' + str(round(all_v[-1], 5)) + ' [m/s]')
     plt.title(str(sim) + " method 3 sphere node velocity vs. time")
     plt.xlabel('Time, t [s]')
     plt.ylabel('Velocity, v [m/s]')
@@ -179,12 +211,29 @@ def plotting(sim, totalTime, Nsteps, all_pos, all_v, midAngle):
     plt.savefig('Homework1/Problem1_plots/' + str(plot2_name))
 
     plt.figure(3)
+    plt.clf()
     plt.plot(t, midAngle, 'r')
     plt.title(str(sim) + " method 3 sphere node mid-angle vs. time")
     plt.xlabel('Time, t [s]')
     plt.ylabel('Angle, $\\alpha$ [deg]')
     plot3_name = str(sim) + '3nodeMidAngle.png'
     plt.savefig('Homework1/Problem1_plots/' + str(plot3_name))
+    
+    plt.figure(4)
+    plt.clf()
+    for ii in range(6):
+        # print(x_plot)
+        # print(y_plot)
+        plt.plot(x_plot[:][ii], y_plot[:][ii], 'o-', label = 'time: ' + str(time_stamps[ii]))  
+    plt.title(str(sim) + ' method Structure deformation at different times')  # Format the title with the current time
+    plt.axis('equal')  # Set equal scaling
+    plt.xlabel('x [m]')
+    plt.ylabel('y [m]')
+    plt.legend()
+    plt.legend(loc='lower left') # legend
+    plot_name = str(sim) + '3nodeAllDeformation_sec.png'
+    plt.savefig('Homework1/Problem1_plots/' + str(plot_name))
+    # plt.show()  # Display the figure
 
 
 def main(met, R1, R2, R3, ex_dt, dt):
@@ -278,14 +327,20 @@ def main(met, R1, R2, R3, ex_dt, dt):
         q = q0.copy()
         u = (q - q0) / dt
 
-        all_pos, all_v, midAngle = mainloop("Implicit", ctime, Nsteps, dt, q0, q, u,
+
+        all_pos, all_v, midAngle, x_plot, y_plot, timp = mainloop("Implicit", ctime, Nsteps, dt, q0, q, u,
                     tol, maximum_iter,
                     m, mMat,  # inertia
                     EI, EA,   # elastic stiffness
                     W, C,     # external force
                     deltaL)
+        
+        # print('before')
+        # for ii in range(np.size(plot_pts, 0)):
+        #     print(plot_pts[ii])
+        # print('before')
 
-        plotting('Implicit', totalTime, Nsteps, all_pos, all_v, midAngle)
+        plotting('Implicit', totalTime, Nsteps, all_pos, all_v, midAngle, x_plot, y_plot, timp)
 
     # Explicit solution execution
     if flag_ex[0] == 1:
@@ -307,14 +362,14 @@ def main(met, R1, R2, R3, ex_dt, dt):
         ex_q = ex_q0.copy()
         ex_u = (ex_q - ex_q0) / ex_dt
 
-        ex_all_pos, ex_all_v, ex_midAngle = mainloop("Explicit", ex_ctime, ex_Nsteps, ex_dt, ex_q0, ex_q, ex_u,
+        ex_all_pos, ex_all_v, ex_midAngle, ex_plot, ey_plot, tex = mainloop("Explicit", ex_ctime, ex_Nsteps, ex_dt, ex_q0, ex_q, ex_u,
                     tol, ex_maximum_iter,
                     m, mMat,  # inertia
                     EI, EA,   # elastic stiffness
                     W, C,     # external force
                     deltaL)
         
-        plotting('Explicit', ex_totalTime, ex_Nsteps, ex_all_pos, ex_all_v, ex_midAngle)
+        plotting('Explicit', ex_totalTime, ex_Nsteps, ex_all_pos, ex_all_v, ex_midAngle, ex_plot, ey_plot, tex)
 
 
 if __name__ == "__main__":

@@ -54,6 +54,7 @@ def hessEs(xk, yk, xkp1, ykp1, l_k, EA):
 
     return J
 
+
 def getFsP1(q, EA, deltaL):
     Fs = np.zeros_like(q)  # force
     Js = np.zeros((len(q), len(q)))  # jacobian

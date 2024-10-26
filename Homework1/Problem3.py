@@ -133,6 +133,8 @@ def plottingDis(q, totalTime, load, Nsteps, all_pos, rel_load, q_max, eu_q_max):
   plt.figure(2)
   t = np.linspace(0, totalTime, Nsteps)
   plt.plot(t, all_pos)
+  plt.plot(t[-1], all_pos[-1], 'ko')
+  plt.text(t[int(len(t)*0.6)], -0.034, 'y_max: ' + str(round(all_pos[-1], 5)) + ' [m]')
   plt.title('Maximum vertical displacement vs. time under ' + str(2000) + 'N load')
   plt.xlabel('Time, t [s]')
   plt.ylabel('Displacement, $\\delta$ [m]')
@@ -151,7 +153,7 @@ def plottingDis(q, totalTime, load, Nsteps, all_pos, rel_load, q_max, eu_q_max):
 
   plt.show()
 
-def main(max_load, totalTime, dt):
+def main(max_load, totalTime, dt, max_inc):
   # Inputs (SI units)
   # number of vertices
   nv = 50 # Odd vs even number should show different behavior
@@ -255,11 +257,12 @@ def main(max_load, totalTime, dt):
   print("Simulation with 20000N completed")
 
   
-  max_inc = 10                        # number of steps to plot the y_max relation
   force_inc = max_load/max_inc        # increments of the force plot
   rel_load = force_inc*np.linspace(0, max_inc, max_inc + 1)
   q_max = np.zeros(max_inc + 1)
   eu_q_max = np.zeros(max_inc + 1)
+  boff = np.zeros(max_inc + 1)
+  
 
   for ii in range(max_inc + 1):
      plot_load = rel_load[ii]
@@ -274,6 +277,9 @@ def main(max_load, totalTime, dt):
      
      qeu = EulerCalc(plot_load, 0.75, 1, Y, Inertia)
      eu_q_max[ii] = qeu
+
+     if -(q_max[ii] - eu_q_max[ii]) > 0.005:
+        boff[ii] = rel_load[ii]
      print("Calculations for load value {} finished".format(f"{plot_load}{"N"}"))
      
   # print(q_max)
@@ -290,11 +296,15 @@ def main(max_load, totalTime, dt):
   print('Euler approximation at 20000N: ' + str(part2_ans) + 'm') 
   print('Simulation displacement at 20000N: ' + str(part2_sim) + 'm')
 
+  # print(boff)
+  print('Beam theory and simulation breaks off at ' + str(boff[np.min(np.nonzero(boff))]) + "N, with discrepancy > 0.01m")
+
   plottingDis(q, totalTime, load, Nsteps, all_pos, rel_load, q_max, eu_q_max)
 
 if __name__ == "__main__":
    in_load = float(input('Enter maximum force for optional part (Default is 30000): ').strip() or '30000')
+   in_inc = int(input('Enter increment amount for force for optional part (Default is 30): ').strip() or '30')
    in_time = float(input('Enter simulation time (Default is 1s): ').strip() or '1')
-   in_step = float(input('Enter time step (Default is 0.01s): ').strip() or '0.01')
+   in_step = float(input('Enter time step (Default is 0.01s): ').strip() or '0.005')
 
-   main(in_load, in_time, in_step)
+   main(in_load, in_time, in_step, in_inc)
