@@ -1,6 +1,10 @@
 # MAE263F_TrevorOshiro
 Repository for code and files written for the MAE263F class at UCLA. 
 
+### Project Proposal Submission (Team 13):
+All files necessary for the assignment are in the ProjectProposal folder within this repository. This includes pdf documents of the proposal slides and the proposal report written. 
+
+
 ### Homework 1 Submission:
 All code and report files are contained within the Homework1 file in this repository. The helper functions directory contains the necessary mathematical operations needed within the other problem scripts and is referenced from them. Each of the directories with plots at the end of the name are the directories where the problems for each script stores the outputteed plots for the deliverables. 
 
