@@ -1,5 +1,5 @@
 import numpy as np
-from Operations import parallel_transport
+from HelperFunctions.Operations import parallel_transport
 
 # This file has the following functions: 
     # computeTangent(q)

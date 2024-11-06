@@ -1,5 +1,5 @@
 import numpy as np
-from Operations import crossMat
+from HelperFunctions.Operations import crossMat
 
 # This file has the following functions: 
     # gradEs_hessEs(node0 = None,node1 = None,l_k = None,EA = None)

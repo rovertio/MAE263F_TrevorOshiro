@@ -1,5 +1,5 @@
 import numpy as np
-from Operations import parallel_transport, rotateAxisAngle, signedAngle
+from HelperFunctions.Operations import parallel_transport, rotateAxisAngle, signedAngle
 
 # This file has the following functions: 
     # computeReferenceTwist(u1, u2, t1, t2, refTwist = None)
