@@ -2,10 +2,10 @@
 Repository for code and files written for the MAE263F class at UCLA. 
 
 ### Homework 2 Submission:
-Within this homework, the following libraries are needed: Ipython, numpy, and matplotlib.
+Libraries needed: Ipython.display, numpy, mpl_toolkits.mplot3d, matplotlib.pyplot
 The helper functions are all within the HelperFunctions folder that include computational functions needed within the main program file for the problem. 
 
-The graphs for the problem can be obtained through the execution of the Problem1.py file in the Homework2 directory (executed within the Homework2 directory):
+The graphs for the problem can be obtained through the execution of the Homework2.py file in the Homework2 directory (executed within the Homework2 directory):
 - Prompted to enter: a desired time step, number of nodes, and total simulation time to obtain plots (but the value defaults to those in the problem statement if nothing is entered into the prompt)
 - Upon execution: show plots at certain time intervals of the simulation (user has to exit out of the plots to continue running the simulation)
 - After the simulation ends: the plots at time steps and the plot of the end node coordinates will be saved into the Problem1_Plots directory in the Homework2 directory
