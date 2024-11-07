@@ -102,7 +102,7 @@ def mainloop(qGuess, q0, u, a1, a2, totalTime,
         endZ[timeStep] = q[-1]
 
         # Every 100 time steps, update material directors and plot the rod
-        if timeStep % 200 == 0:
+        if timeStep % 100 == 0:
             plotrod_simple(q, ctime)
 
     return time_array, endZ
@@ -115,13 +115,15 @@ def EndPlot(time_array, endZ):
     plt.box(True)
     plt.xlabel('Time, t [sec]')
     plt.ylabel('z-coord of last node, $\\delta_z$ [m]')
+    plot2_name = 'EndPlot'
+    plt.savefig('Problem1_Plots/' + str(plot2_name))
     plt.show()
 
 
-def main(totalTime, dt):
+def main(totalTime, dt, nv):
     #################################################
     # Node coordinates and DoF initialization
-    nv = 50 # nodes
+    # nv = 50 # nodes
     ne = nv - 1 # edges
     ndof = 4 * nv - 1 # degrees of freedom: 3*nv + ne
 
@@ -269,8 +271,9 @@ if __name__ == "__main__":
 
     totalTime = float(input('Enter desired total time (Default for problem is 5s): ').strip() or '5')
     dt = float(input('Enter desired time step (Default for problem is 0.01s): ').strip() or '0.01')
+    nv = int(input('Enter desired node number (Default for problem is 50): ').strip() or '50')
 
-    main(totalTime, dt)
+    main(totalTime, dt, nv)
 
 
 
