@@ -143,7 +143,7 @@ def plotrod_simple(q, ctime):
     # Set equal scaling and a 3D view
     set_axes_equal(ax)
     plt.draw()  # Force a redraw of the figure
-    plot2_name = 'DisplacementTime' + str(ctime) + 'sec.png'
+    plot2_name = 'DisplacementTime' + str(round(ctime, 3)) + 'sec.png'
     plt.savefig('Problem1_Plots/' + str(plot2_name))
 
     plt.show()
