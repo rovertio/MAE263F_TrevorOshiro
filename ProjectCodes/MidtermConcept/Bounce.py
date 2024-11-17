@@ -62,15 +62,15 @@ def mainloop(q_guess, q_old, u_old, dt, tol_dq, maximum_iter, m, mMat, W, free_i
         for c in range(nv): # Loop over each node and check for two conditions
             # Condition 1: if the y coordinate is below 0
             if isFixed[c] == 0 and q[2*c+1] < 0:
-            isFixed[c] = 1
-            q_guess[2*c+1] = 0.0
-            needCorrector = True
+                isFixed[c] = 1
+                q_guess[2*c+1] = 0.0
+                needCorrector = True
             break
             # Condition 2: if node is fixed and has negative reaction force
             elif isFixed[c] == 1 and reactionForce[2*c+1] < 0.0:
-            isFixed[c] = 0 # Free that node
-            q_guess[2*c+1] = 0.0
-            needCorrector = True
+                isFixed[c] = 0 # Free that node
+                q_guess[2*c+1] = 0.0
+                needCorrector = True
             break
 
         # Corrector step
