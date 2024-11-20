@@ -18,48 +18,82 @@ def get_matind(nodes):
 
     return ind
 
+def getNnum(ind):
+    # takes in node indices and gives the corresponging number for 3D
+    # ASSUMING nodes start at 1
+    ind = np.array(ind)
+    Nnum = np.zeros(int(len(ind)/3))
+    st_nodes = np.ones(len(ind)) + ((ind/3).astype(int))
+
+    for jj in range(int(len(ind)/3)):
+        Nnum[jj] = st_nodes[3*jj]
+
+    Nnum = Nnum.astype(int)
+
+    return Nnum
 
 
-def MMM_Scalc(mat, ndof, con_ind):
+
+def MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec):
+    # Iterates over nodes and adjusts according to collision presence
+
+    # print(S_mat)
+    # print(force)
+
+    f_n = (1 / dt) * ( ((q_new - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force) - z_vec
+
+    return f_n
+
+def MMM_zcalc(q_con, q_old, u_old, dt, mass, force, S_mat):
+    # Iterates over nodes and adjusts according to collision presence
+
+    z_vec = (1 / dt) * ( ((q_con - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force)
+
+    return z_vec
+
+
+
+def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
     # mat is a 3D array containing vectors p and q for a 2D case
-    # nv is the total number of nodes in simulation
-    # con_ind is the indices of nodes involved in collision
+    # con_node -> indicates nodes that were free to be constricted by this step
+    # free_node -> indicates nodes that were constrained to be freed in this step
     # example call for two nodes: MMM_Scalc([[[1, 0, 0], [0, 0, 0]], [[1, 0, 0], [0, 0, 0]]], 6, [0,1,2,3,4,5])
 
-    s_mat = np.eye(ndof)
+    ndof = len(q_old)             # Degree of freedom from all nodes
+    s_mat = np.eye(ndof)                            # Initialize the S matrix
+    z_vec = np.zeros(ndof)                          # Initialize the z vector
 
-    if ndof > 3:
-        for ii in range(0, int(ndof/3) - 1):
-            print(ii)
+    con_node = getNnum(con_ind)
+    free_node = getNnum(free_ind)
+
+    # Calculates the new S and z terms to correct in the objective function
+    # If any nodes need to be constrained
+    if len(con_node) >= 1:
+        for ii in range(len(con_node) - 1):
             S_n = np.eye(3) - np.outer(mat[ii][0], mat[ii][0]) - np.outer(mat[ii][1], mat[ii][1])
-            print(ii)
+            z_n = MMM_zcalc(q_con[(con_ind[3*ii]):(con_ind[3*ii] + 3)], q_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], \
+                            u_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], dt, mass, force[(con_ind[3*ii]):(con_ind[3*ii] + 3)], S_n)
+            z_n = ( np.dot(mat[ii][0], z_n[con_ind[(3*ii):(3*ii + 3)]]) ) * np.array(mat[ii][0])
+
             s_mat[(con_ind[3*ii]):(con_ind[3*ii] + 3), (con_ind[3*ii]):(con_ind[3*ii] + 3)] = S_n
-            print(s_mat)
-    else:
-        # One node case
-        S_n = np.eye(3) - np.outer(mat[0][0], mat[0][0]) - np.outer(mat[0][1], mat[0][1])
-        s_mat[(con_ind[0]):(con_ind[0] + 3), (con_ind[0]):(con_ind[0] + 3)] = S_n
+            z_vec[(con_ind[3*ii]):(con_ind[3*ii] + 3)] = z_n
 
-    return s_mat
+    # If any nodes need to be freed
+    if len(free_node) >= 1:
+        for kk in range(len(free_node) - 1):
+            S_n = np.eye(3)
+            z_n = np.zeros(3)
 
+            s_mat[(free_ind[3*kk]):(free_ind[3*kk] + 3), (free_ind[3*kk]):(free_ind[3*kk] + 3)] = S_n
+            z_vec[(free_ind[3*kk]):(free_ind[3*kk] + 3)] = z_n
 
+            # s_mat[(con_ind[3*ii]):(con_ind[3*ii] + 3), (con_ind[3*ii]):(con_ind[3*ii] + 3)] = S_n
+            # s_mat[(3*ii):(3*ii + 3), (3*ii):(3*ii + 3)] = S_n
+            # z_vec[(3*ii):(3*ii + 3)] = z_n
 
-def cor_cal(q_guess, q_old, u_old, dt, mass, p, q, q_con, force, nodes, tol):
-    # Calculates the corrective placement of the node and the reaction force associated
-    # p and q can be vectors with multiple entries of vectors
-
-    # Obtaining S matrix and indicies for nodes under contact
-    if len(np.shape(p)) == 1:
-        mat = np.zeros([1,2])
-    else:
-        mat = np.zeros([np.size(p, 0), 2])
-    mat[0:, 0] = p
-    mat[0:, 1] = q
-    cor_ind = get_matind(nodes)
-    S_mat = MMM_Scalc(mat)
-    
-
-    return S_mat, cor_ind
+    # print(s_mat)
+    # print(z_vec)
+    return s_mat, z_vec
 
 
 
@@ -83,7 +117,7 @@ def free_cal(q_guess, q_old, u_old, dt, mass, force, tol, ob_flag, mat, con_node
         # print(con_ind)
         uncon_ind = np.setdiff1d(np.arange(ndof), con_ind)          # get unconstrained nodes (not impacted from collision)
 
-        S_mat = MMM_Scalc(mat, ndof, con_ind)                       # calculate S matrix
+        S_mat = MMM_Szcalc(mat, ndof, con_ind)                       # calculate S matrix
         q_new[con_ind] = q_con[con_ind]                             # set q_new for constrained nodes to set values
     else:
         S_mat = np.eye(ndof)                                        # set S matrix for all nodes unconstrained otherwise
@@ -129,34 +163,122 @@ def free_cal(q_guess, q_old, u_old, dt, mass, force, tol, ob_flag, mat, con_node
 
 
 
+def test_col(q_test, r_force):
+    # free_ind indicates nodes currently free that are being tested
+    # con_ind indicates nodes currently constrained that are being tested
+    q_con = np.zeros(len(q_test))
+    con_ind = np.zeros(len(q_test))
+    con_ind = con_ind.astype(int)
+    free_ind = np.zeros(len(q_test))
+    free_ind = free_ind.astype(int)
+
+    # print(q_test)
+    # print(r_force)
+
+    for ii in range(int(len(q_test)/3)):
+        if q_test[3*ii + 1] <= 0:
+            q_con[3*ii + 1] = 0.001
+            mat[ii][0] = np.array([0,1,0])
+            con_ind[ii] = ii + 1
+
+        unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
+        # print(ii + 1)
+        if ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])[1] > 0:
+            free_ind[ii] = ii + 1
+        else:
+            con_ind[ii] = ii + 1
+
+    if len(con_ind[con_ind != 0]) >= 1:
+        con_ind = get_matind([con_ind[con_ind != 0]])
+    if len(free_ind[free_ind != 0]) >= 1:
+        free_ind = get_matind([free_ind[free_ind != 0]])
+
+    # print(con_ind)
+    # print(free_ind)
+
+    return con_ind, free_ind, q_con
+
+
+
+def MMM_cal(q_guess, q_old, u_old, dt, mass, force, tol, S_mat, z_vec):
+    # Calculates the placement of the node assuming no collision
+    # q_con gives enforced displacement values at nodes from collision
+
+    # ndof = 3*nv
+    # Simulation parameters
+    q_new = q_guess.copy()
+    iter_count = 0
+    max_itt = 500
+    error = tol * 10
+    flag = 1 # Start with a good simulation
+
+    while error > tol:
+        # Calculation of correction step from mass matrix
+        f_n = MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec)
+        # print(np.linalg.norm(f_n))
+        J_n = S_mat / dt**2.0
+
+        # Solve for dq
+        dq = np.linalg.solve(J_n, f_n)
+        # print(dq)
+        # print(q_new)
+        
+        q_new = q_new - dq                            # Update q_new
+        # Calculate error using the change in position (not force, but using force is OK too)
+        error = np.linalg.norm(f_n)
+
+        # print(iter_count)
+        iter_count += 1
+        if iter_count > max_itt:
+            flag = -1
+            break
+    print(iter_count)
+    # Calculation of reaction force (done within iteration)
+    r_force = f_n
+
+    # Calculates projection of force onto the constraints if there are
+    # if len(con_ind) > 0:
+    #     for jj in range(int(ndof/3) - 1):
+    #         f_n[con_ind[(3*jj):(3*jj + 3)]] = ( np.dot(mat[jj][0], f_n[con_ind[(3*jj):(3*jj + 3)]]) ) * np.array(mat[jj][0])
+
+    return r_force, q_new, flag
+
+
     
 
 if __name__ == '__main__':
-    
+
+    # a = [[1,2,3], [4, 5, 6], [7, 8, 9]]
+    # print(a[np.ix_(np.array([1,2]), np.array([1,2]))])
+    # print(getNnum(np.array([0,1,2,9,10,11,12,13,14])))
+
     nv = 1
     # nv = 2
-    q_old = np.zeros(3)
-    # q_old = np.zeros(6)
+    # q_old = np.zeros(3)
+    q_old = np.zeros(6)
     q_guess = q_old.copy()
-    u_old = np.zeros(3)
-    # u_old = np.zeros(6)
+    # u_old = np.zeros(3)
+    u_old = np.zeros(6)
     dt = 1e-3
     mass = 0.01
-    force = mass * np.array([0, -9.81, 0])
-    # force = mass * np.array([0, -9.81, 0, 0, -9.81, 0])
+    # force = mass * np.array([0, -9.81, 0])
+    force = mass * np.array([0, -9.81, 0, 0, -9.81, 0])
     tol = 1e-6
     ob_flag = -1
-    mat = [[[0, 1, 0], [0, 0, 0]]]
-    # mat = [[[0, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]
-    con_nodes = [1]
-    q_con = np.array([0, 0.001, 0])
-    # q_con = np.array([0, 0.001, 0, 0, 0, 0]) 
+    # mat = [[[0, 1, 0], [0, 0, 0]]]
+    mat = [[[0, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]
+    # con_nodes = [1]
+    #q_con = np.array([0, 0.001, 0])
+    q_con = np.array([0, 0.001, 0, 0, 0, 0])
+    con_ind = [0,1,2]
+    free_ind = [3,4,5]
+     
 
     test_ind = get_matind([1])
     # print(type(test_ind))
     # print(test_ind[0])
 
-    s_mat = MMM_Scalc(mat, 3, test_ind)
+    # s_mat = MMM_Scalc(mat, 3, test_ind)
     # # print(mat[0][0])
     # print(s_mat)
 
@@ -167,8 +289,7 @@ if __name__ == '__main__':
     # print(mat[0][0])
     # print(np.array(mat[0][0]) * np.dot(mat[0][0], [0.5, 0.5, 0.3]))
     
-    r_force, q_new, flag = free_cal(q_guess, q_old, u_old, dt, mass, force, tol, ob_flag, mat, con_nodes, q_con, nv)
-    print(r_force)
-    print(q_new)
-    print(flag)
+    S, z = MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force)
+    print(S)
+    print(z)
 
