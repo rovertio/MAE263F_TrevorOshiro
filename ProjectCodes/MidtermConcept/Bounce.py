@@ -50,7 +50,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, force, tol, mat, nv):
     ctime = 0 # current time
     all_pos = np.zeros(Nsteps)
     q0 = q_old
-    u0 = u_old
+    u = u_old
     all_pos[0] = q0[1]
     all_u = np.zeros(Nsteps)
     
@@ -60,15 +60,21 @@ def simloop(q_guess, q_old, u_old, dt, mass, force, tol, mat, nv):
 
     for timeStep in range(1, Nsteps): # Loop over time steps
         print('t = %f\n' % ctime)
-        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u0, dt, mass, force, tol, s_mat, z_vec)
+        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, force, tol, s_mat, z_vec)
+        #print("First")
+        #print(q[1])
 
-        con_ind, free_ind, q_con = MMMadj.test_col(q, r_force)
+        con_ind, free_ind, q_con, mat = MMMadj.test_col(q, r_force)
+        #print(con_ind)
+        #print(free_ind)
+        #print(q_con)
 
         s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force)
-        # print(s_mat)
-        # print(z_vec)
+        print(s_mat)
+        print(z_vec)
 
-        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u0, dt, mass, force, tol, s_mat, z_vec)
+        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, force, tol, s_mat, z_vec)
+        print("Corrected")
         print(q[1])
 
         u = (q - q0) / dt # update velocity
@@ -105,7 +111,7 @@ if __name__ == '__main__':
     # Time step
     dt = 1e-4 # Play around with it to see it's aritificial effect on contact
     maximum_iter = 100
-    totalTime = 5
+    totalTime = 3
     tol_dq = 1e-6 # Small length value
 
     # Mass
