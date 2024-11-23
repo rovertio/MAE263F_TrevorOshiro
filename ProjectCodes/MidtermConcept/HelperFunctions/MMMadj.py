@@ -1,5 +1,7 @@
 import numpy as np
 
+from HelperFunctions.BendingFun import getFbP2
+from HelperFunctions.StrechingFun import getFsP2
 
 def get_matind(nodes):
     # takes in node numbers and outputs corresponding indices for S matrix
@@ -73,7 +75,8 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
             S_n = np.eye(3) - np.outer(mat[ii][0], mat[ii][0]) - np.outer(mat[ii][1], mat[ii][1])
             z_n = MMM_zcalc(q_con[(con_ind[3*ii]):(con_ind[3*ii] + 3)], q_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], \
                             u_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], dt, mass, force[(con_ind[3*ii]):(con_ind[3*ii] + 3)], S_n)
-            z_n = ( np.dot(mat[ii][0], z_n[con_ind[(3*ii):(3*ii + 3)]]) ) * np.array(mat[ii][0])
+            #print(z_n)
+            z_n = ( np.dot(mat[ii][0], z_n) ) * np.array(mat[ii][0])
 
             s_mat[(con_ind[3*ii]):(con_ind[3*ii] + 3), (con_ind[3*ii]):(con_ind[3*ii] + 3)] = S_n
             z_vec[(con_ind[3*ii]):(con_ind[3*ii] + 3)] = z_n
@@ -166,37 +169,50 @@ def free_cal(q_guess, q_old, u_old, dt, mass, force, tol, ob_flag, mat, con_node
 def test_col(q_test, r_force):
     # free_ind indicates nodes currently free that are being tested
     # con_ind indicates nodes currently constrained that are being tested
-    q_con = np.zeros(len(q_test))
+    q_con = q_test
     con_ind = np.zeros(len(q_test))
     con_ind = con_ind.astype(int)
     free_ind = np.zeros(len(q_test))
     free_ind = free_ind.astype(int)
-    mat = np.zeros((1,2,3))
+    mat = np.zeros((int(len(q_test)/3),2,3))
 
     # print(q_test)
     # print(r_force)
 
     for ii in range(int(len(q_test)/3)):
+        unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
+        proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
+        #print(proj_vec[1])
         if q_test[3*ii + 1] <= 0:
             q_con[3*ii + 1] = 0.001
-            mat[ii][0] = np.array([0,1,0])
+            mat[ii] = np.array([[0,1,0],[0,0,0]])
             #print(mat)
             con_ind[ii] = ii + 1
-
-        unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
-        # print(ii + 1)
-        if ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])[1] > 0:
+            print("Below surface")
+        elif proj_vec[1] < 0:
             free_ind[ii] = ii + 1
+            mat[ii] = np.array([[0,0,0],[0,0,0]])
+            print("Negative reaction")
+        elif np.round(proj_vec[1],8) == 0:
+            # No reaction force -> free falling
+            free_ind[ii] = ii + 1
+            mat[ii] = np.array([[0,0,0],[0,0,0]])
+            print("Zero force")
         else:
-            con_ind[ii] = ii + 1
+            free_ind[ii] = ii + 1
+            mat[ii] = np.array([[0,0,0],[0,0,0]])
+            print("Other")
+            
 
+    #print(free_ind)
     if len(con_ind[con_ind != 0]) >= 1:
-        con_ind = get_matind([con_ind[con_ind != 0]])
+        con_ind = get_matind(con_ind[con_ind != 0])
         #print(con_ind)
     else:
         con_ind = np.array([-1])
     if len(free_ind[free_ind != 0]) >= 1:
-        free_ind = get_matind([free_ind[free_ind != 0]])
+        # print(free_ind)
+        free_ind = get_matind(free_ind[free_ind != 0])
         #print(free_ind)
     else:
         free_ind = np.array([-1])
@@ -208,7 +224,7 @@ def test_col(q_test, r_force):
 
 
 
-def MMM_cal(q_guess, q_old, u_old, dt, mass, force, tol, S_mat, z_vec):
+def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec):
     # Calculates the placement of the node assuming no collision
     # q_con gives enforced displacement values at nodes from collision
 
@@ -221,17 +237,25 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, force, tol, S_mat, z_vec):
     flag = 1 # Start with a good simulation
 
     while error > tol:
+        # print(np.linalg.norm(f_n))
+        Fb, Jb = getFbP2(q_new, EI, deltaL)
+        Fs, Js = getFsP2(q_new, EA, deltaL)
+
         # Calculation of correction step from mass matrix
         f_n = MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec)
-        # print(np.linalg.norm(f_n))
+
+        #J_n = S_mat / dt**2.0 - (Jb + Js)
         J_n = S_mat / dt**2.0
         #J_n = np.eye(3) / dt**2.0
 
         # Solve for dq
         dq = np.linalg.solve(J_n, f_n)
         # print(dq)
-        # print(q_new)
+        # print(Fb)
+        # print(Fs)
         
+        # print(Jb)
+        # print(Js)
         q_new = q_new - dq                            # Update q_new
         # Calculate error using the change in position (not force, but using force is OK too)
         error = np.linalg.norm(f_n)
@@ -261,7 +285,7 @@ if __name__ == '__main__':
     # print(a[np.ix_(np.array([1,2]), np.array([1,2]))])
     # print(getNnum(np.array([0,1,2,9,10,11,12,13,14])))
 
-    nv = 1
+    nv = 2
     # nv = 2
     # q_old = np.zeros(3)
     q_old = np.zeros(6)

@@ -5,7 +5,8 @@ from IPython.display import clear_output # Only for IPython
 # Helper Functions for MMM
 # import HelperFunctions.collisions
 import HelperFunctions.MMMadj as MMMadj
-
+from HelperFunctions.BendingFun import getFbP1
+from HelperFunctions.StrechingFun import getFsP1
 
 
 def objfun(q_guess, q_old, u_old, dt, tol_dq, maximum_iter, m, mMat, W, free_index):
@@ -45,7 +46,7 @@ def objfun(q_guess, q_old, u_old, dt, tol_dq, maximum_iter, m, mMat, W, free_ind
   return q_new, flag, reactionForce
 
 
-def simloop(q_guess, q_old, u_old, dt, mass, force, tol, mat, nv):
+def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv):
     Nsteps = round(totalTime / dt) # number of time steps
     ctime = 0 # current time
     all_pos = np.zeros(Nsteps)
@@ -60,20 +61,26 @@ def simloop(q_guess, q_old, u_old, dt, mass, force, tol, mat, nv):
 
     for timeStep in range(1, Nsteps): # Loop over time steps
         print('t = %f\n' % ctime)
-        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, force, tol, s_mat, z_vec)
+        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, EI, EA, deltaL, force, tol, s_mat, z_vec)
         #print("First")
-        #print(q[1])
+        print(q)
+        print(r_force)
 
         con_ind, free_ind, q_con, mat = MMMadj.test_col(q, r_force)
-        #print(con_ind)
-        #print(free_ind)
-        #print(q_con)
+        print(con_ind)
+        print(free_ind)
 
+        if len(con_ind) < 2 and len(free_ind) < 2:
+           print("error with collision detection")
+           break
+        # print(q_con)
+        # print(mat[0])
+        # print(mat[1])
         s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force)
         print(s_mat)
         print(z_vec)
 
-        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, force, tol, s_mat, z_vec)
+        r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt, mass, EI, EA, deltaL, force, tol, s_mat, z_vec)
         print("Corrected")
         print(q[1])
 
@@ -105,8 +112,9 @@ def plotting(all_pos):
 if __name__ == '__main__':
 
     # Inputs
-    nv = 1
-    ndof = 3 * nv # I am working in 2D
+    nv = 2
+    ndof = 3 * nv
+    ne = nv - 1
 
     # Time step
     dt = 1e-4 # Play around with it to see it's aritificial effect on contact
@@ -115,23 +123,56 @@ if __name__ == '__main__':
     tol_dq = 1e-6 # Small length value
 
     # Mass
+    # Rod Length
+    RodLength = 0.10
+    # Cross-sectional radius of rod
+    r0 = 1e-3
+    # Geometry of the rod
+    nodes = np.zeros((nv, 2))
+    for c in range(nv):
+      nodes[c, 0] = c * RodLength / ne
+
+    # Young's modulus
+    Y = 1e9
+    rho = 7000
     mass = 0.001
+
+    # Discrete length
+    deltaL = RodLength / (nv - 1)
+    #deltaL=0.01
+    # Radius of spheres
+    R = np.zeros(nv)  # Vector of size N - Radius of N nodes
+    R[:] = 0.005 # deltaL / 10: Course note uses deltaL/10
+    # Utility quantities
+    EI = Y * np.pi * r0**4 / 4
+    EA = Y * np.pi * r0**2
 
     # Weight
     W = np.zeros(ndof)
-    g = np.array([0, -9.8, 0]) # m/s^2
-    W = g*mass
+    g = np.array([0, -9.8, 0])  # m/s^2 - gravity
+    for k in range(nv):
+      W[3*k]   = mass * g[0] # Weight for x_k
+      W[3*k+1] = mass * g[1] # Weight for y_k
 
     # Initial conditions
     q0 = np.zeros(ndof)
-    q0 = np.array([0,5,0])
+    for k in range(nv):
+      q0[3 * k] = nodes[c, 0]
+      #q0[3 * k + 1] = nodes[c, 1]
+      q0[3*k + 1] = 3
+
+    # q0[1] = 3
+    # q0[4] = 3
+    # q0[7] = 3
     q = q0.copy()
     # Velocity
     u = np.zeros(ndof)
     # u[0:2] = [-0.005, 0]
     # u[2:4] = [0.005, 0]
 
-    mat = [[[0, 1, 0], [0, 0, 0]]]
+    mat = np.zeros((nv,2,3))
+    #mat = [[[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]
+    q_con = np.zeros(ndof)
 
-    all_pos = simloop(q0, q0, u, dt, mass, W, tol_dq, mat, nv)
+    all_pos = simloop(q0, q0, u, dt, mass, EI, EA, deltaL, W, tol_dq, mat, nv)
     # plotting(all_pos)
