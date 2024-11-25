@@ -2,6 +2,7 @@ import numpy as np
 
 from HelperFunctions.BendingFun import getFbP2
 from HelperFunctions.StrechingFun import getFsP2
+from HelperFunctions.OpFun import crossMat
 
 def get_matind(nodes):
     # takes in node numbers and outputs corresponding indices for S matrix
@@ -40,7 +41,7 @@ def MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec):
     # Iterates over nodes and adjusts according to collision presence
 
     # print(S_mat)
-    # print(force)
+    #print(force)
 
     f_n = (1 / dt) * ( ((q_new - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force) - z_vec
 
@@ -61,7 +62,7 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
     # free_node -> indicates nodes that were constrained to be freed in this step
     # example call for two nodes: MMM_Scalc([[[1, 0, 0], [0, 0, 0]], [[1, 0, 0], [0, 0, 0]]], 6, [0,1,2,3,4,5])
 
-    ndof = len(q_old)             # Degree of freedom from all nodes
+    ndof = len(q_old)                               # Degree of freedom from all nodes
     s_mat = np.eye(ndof)                            # Initialize the S matrix
     z_vec = np.zeros(ndof)                          # Initialize the z vector
 
@@ -175,25 +176,33 @@ def test_col(q_test, r_force):
     free_ind = np.zeros(len(q_test))
     free_ind = free_ind.astype(int)
     mat = np.zeros((int(len(q_test)/3),2,3))
+    flag = 0
 
     # print(q_test)
     # print(r_force)
 
     for ii in range(int(len(q_test)/3)):
-        unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
-        proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
+        # If the reaction force vector is zero
+        if np.round(np.sum(r_force)) == 0:
+            proj_vec = np.zeros(3)
+        else:
+            unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
+            proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
+
         #print(proj_vec[1])
-        if q_test[3*ii + 1] <= 0:
-            q_con[3*ii + 1] = 0.001
+        if q_test[3*ii + 1] < 0:
+            #q_con[3*ii + 1] = 0.1*(1-ii)
+            q_con[3*ii + 1] = 0
             mat[ii] = np.array([[0,1,0],[0,0,0]])
             #print(mat)
             con_ind[ii] = ii + 1
             print("Below surface")
-        elif proj_vec[1] < 0:
+            flag = 1
+        elif q_test[3*ii + 1] >= 0 and proj_vec[1] < 0:
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
             print("Negative reaction")
-        elif np.round(proj_vec[1],8) == 0:
+        elif q_test[3*ii + 1] >= 1e-6 and np.round(proj_vec[1],8) == 0:
             # No reaction force -> free falling
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
@@ -218,9 +227,7 @@ def test_col(q_test, r_force):
         free_ind = np.array([-1])
 
     #print(mat)
-    
-
-    return con_ind, free_ind, q_con, mat
+    return con_ind, free_ind, q_con, mat, flag
 
 
 
@@ -240,25 +247,32 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
         # print(np.linalg.norm(f_n))
         Fb, Jb = getFbP2(q_new, EI, deltaL)
         Fs, Js = getFsP2(q_new, EA, deltaL)
-
-        # Calculation of correction step from mass matrix
-        f_n = MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec)
-
-        #J_n = S_mat / dt**2.0 - (Jb + Js)
-        J_n = S_mat / dt**2.0
-        #J_n = np.eye(3) / dt**2.0
-
-        # Solve for dq
-        dq = np.linalg.solve(J_n, f_n)
-        # print(dq)
-        # print(Fb)
-        # print(Fs)
-        
+        #print(Fb)
+        #print(Fs)
         # print(Jb)
         # print(Js)
+
+        # Calculation of correction step from mass matrix
+        # For use with one node
+        # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force), S_mat, z_vec)
+        # J_n = np.eye(len(q_old)) / dt**2.0
+        # For use with 2 nodes
+        # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs), S_mat, z_vec)
+        # J_n = np.eye(len(q_old)) / dt**2.0 + (Js)
+        # For use with 3 nodes or more
+        f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs+Fb), S_mat, z_vec)
+        J_n = np.eye(len(q_old)) / dt**2.0 + (Js + Jb)
+
+        
+        # print(f_n)
+        # print(J_n)
+        # Solve for dq
+        dq = np.linalg.solve(J_n, f_n)
+        #print(dq)
+        
         q_new = q_new - dq                            # Update q_new
         # Calculate error using the change in position (not force, but using force is OK too)
-        error = np.linalg.norm(f_n)
+        error = np.linalg.norm(dq)
 
         # print(iter_count)
         iter_count += 1

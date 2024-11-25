@@ -85,7 +85,7 @@ def getFsP1(q, EA, deltaL):
 
     return Fs, Js
 
-def getFsP2(q, EA, deltaL):
+def getFsP2Ref(q, EA, deltaL):
     ndof = q.size # number of DOF
     nv = int(ndof / 2) # number of nodes
 
@@ -108,6 +108,49 @@ def getFsP2(q, EA, deltaL):
 
       # Compute the Hessian of bending energy
       hessEnergy = hessEs(xkm1, ykm1, xk, yk, deltaL, EA)
+      print(hessEnergy)
       Js[np.ix_(ind, ind)] = Js[np.ix_(ind, ind)] - hessEnergy
 
     return Fs, Js
+
+
+def getFsP2(q, EA, deltaL):
+    ndof = q.size # number of DOF
+    nv = int(ndof / 3) # number of nodes
+
+    # Initialize bending force as a zero vector of size 6
+    Fs = np.zeros(ndof)
+
+    # Initialize Jacobian of bending force as a 6x6 zero matrix
+    Js = np.zeros((ndof, ndof))
+
+    for k in range(0,nv-1): # loop over all nodes except the last
+      xkm1 = q[3*k]
+      ykm1 = q[3*k+1]
+      xk = q[3*k+3]
+      yk = q[3*k+4]
+      ind = [3*k,3*k+1,3*k+3,3*k+4]
+    #   print(xkm1)
+    #   print(xk)
+    #   print(ykm1)
+    #   print(yk)
+    
+      #ind = np.arange(3*k,3*k+4)
+
+      # Compute the gradient of stretching energy
+      gradEnergy = gradEs(xkm1, ykm1, xk, yk, deltaL, EA)
+      Fs[ind] = Fs[ind] - gradEnergy
+
+      # Compute the Hessian of bending energy
+      hessEnergy = hessEs(xkm1, ykm1, xk, yk, deltaL, EA)
+      #print(hessEnergy)
+      Js[np.ix_(ind, ind)] = Js[np.ix_(ind, ind)] - hessEnergy
+
+    return Fs, Js
+
+
+if __name__ == '__main__':
+   Fs, Js=getFsP2(np.array([0.1, 0.05, 0, 0, 0, 0]),100,0.1)
+   #Fs, Js=getFsP2Ref(np.array([0, 0, 0, 0.05]),100,0.1)
+   print(Fs)
+   print(Js)

@@ -1,7 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from HelperFunctions.OpFun import crossMat
 
+
+def crossMat(a):
+    """
+    Returns the cross product matrix of vector 'a'.
+
+    Parameters:
+    a : np.ndarray
+        A 3-element array representing a vector.
+
+    Returns:
+    A : np.ndarray
+        The cross product matrix corresponding to vector 'a'.
+    """
+    A = np.array([[0, -a[2], a[1]],
+                  [a[2], 0, -a[0]],
+                  [-a[1], a[0], 0]])
+
+    return A
 
 def gradEb(xkm1, ykm1, xk, yk, xkp1, ykp1, curvature0, l_k, EI):
     """
@@ -239,7 +256,7 @@ def getFbP1(q, EI, deltaL):
 
     return Fb, Jb
 
-def getFbP2(q, EI, deltaL):
+def getFbP2ref(q, EI, deltaL):
     """
     Compute the bending force and Jacobian of the bending force.
 
@@ -291,20 +308,77 @@ def getFbP2(q, EI, deltaL):
 
     return Fb, Jb
 
+
+def getFbP2(q, EI, deltaL):
+    """
+    Compute the bending force and Jacobian of the bending force.
+
+    Parameters:
+    q : np.ndarray
+        A vector of size 6 containing the coordinates [x_{k-1}, y_{k-1}, x_k, y_k, x_{k+1}, y_{k+1}].
+    EI : float
+        The bending stiffness.
+    deltaL : float
+        The Voronoi length.
+
+    Returns:
+    Fb : np.ndarray
+        Bending force (vector of size 6).
+    Jb : np.ndarray
+        Jacobian of the bending force (6x6 matrix).
+    """
+
+    ndof = q.size # number of DOF
+    nv = int(ndof / 3) # number of nodes
+
+    # Initialize bending force as a zero vector of size 6
+    Fb = np.zeros(ndof)
+
+    # Initialize Jacobian of bending force as a 6x6 zero matrix
+    Jb = np.zeros((ndof, ndof))
+
+    for k in range(1,nv-1): # loop over all nodes except the first and last
+        # Extract coordinates from q
+        xkm1 = q[3*k-3]
+        ykm1 = q[3*k-2]
+        xk = q[3*k]
+        yk = q[3*k + 1]
+        xkp1 = q[3*k+3]
+        ykp1 = q[3*k+4]
+        ind = [3*k-3, 3*k-2, 3*k, 3*k+1, 3*k+3, 3*k+4]
+
+        # Compute the gradient of bending energy
+        gradEnergy = gradEb(xkm1, ykm1, xk, yk, xkp1, ykp1, 0, deltaL, EI)
+
+        # Update bending force
+        Fb[ind] = Fb[ind] - gradEnergy
+
+        # Compute the Hessian of bending energy
+        hessEnergy = hessEb(xkm1, ykm1, xk, yk, xkp1, ykp1, 0, deltaL, EI)
+
+        # Update Jacobian matrix
+        Jb[np.ix_(ind, ind)] = Jb[np.ix_(ind, ind)] - hessEnergy
+
+    return Fb, Jb
+
 # Test
 # Function to call getFb with predefined inputs
 def test_getFb():
     # Predefined inputs
-    q = np.array([0.0062, -0.0420, 0.0500, -0.0661, 0.0938, -0.0420])
+    q = np.array([0.0062, -0.0420, 0, -0.0661, 0.0938, 0, 0.001, 0.03, 0])
     EI = 7.8540e-04
     deltaL = 0.05
 
     # Call getFb function
-    Fb, Jb = getFbP1(q, EI, deltaL)
+    Fb, Jb = getFbP2(q, EI, deltaL)
 
     # Print the outputs
     print("Bending Force (Fb):")
     print(Fb)
     print("\nJacobian Matrix (Jb):")
     print(Jb)
+
+
+if __name__ == '__main__':
+    test_getFb()
 
