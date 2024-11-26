@@ -2,7 +2,7 @@
 Repository for code and files written for the MAE263F class at UCLA. 
 
 ### Midterm Report/Presentation Submission:
-All necessary files for the project progress as of the midterm can be found within the MidtermConcept directory in this repository. The file for the presentation is the pdf file titled MidtermPresentation, and the file for the report is the pdf file titled as Midterm.
+All necessary files for the project progress as of the midterm can be found within the ProjectCodes directory under the MidtermConcept directory in this repository. The file for the presentation is the pdf file titled MidtermPresentation, and the file for the report is the pdf file titled as Midterm.
 
 The code developed for this stage of the project for the Modified Mass Method implementation is found with the python file titled Bounce, and the python files containing helper functions within the HelperFunctions directory (within the MidtermConcept directory). The files are set to be run for one node upon execution of Bounce.py. Including more nodes for simulation of a straight beam is possible by uncommenting lines for variables f_n and J_n within the MMMadj.py file in the HelperFunctions directory. Lines initiating the node number and initial conditions would also need to be uncommented within the main function of the Bounce.py file.
 
