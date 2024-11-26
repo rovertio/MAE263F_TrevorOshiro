@@ -190,7 +190,7 @@ def test_col(q_test, r_force):
             proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
 
         #print(proj_vec[1])
-        if q_test[3*ii + 1] < 0:
+        if q_test[3*ii + 1] < 1e-6:
             #q_con[3*ii + 1] = 0.1*(1-ii)
             q_con[3*ii + 1] = 0
             mat[ii] = np.array([[0,1,0],[0,0,0]])
@@ -198,7 +198,7 @@ def test_col(q_test, r_force):
             con_ind[ii] = ii + 1
             print("Below surface")
             flag = 1
-        elif q_test[3*ii + 1] >= 0 and proj_vec[1] < 0:
+        elif q_test[3*ii + 1] >= 1e-6 and proj_vec[1] < 0:
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
             print("Negative reaction")
@@ -245,8 +245,8 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
 
     while error > tol:
         # print(np.linalg.norm(f_n))
-        Fb, Jb = getFbP2(q_new, EI, deltaL)
-        Fs, Js = getFsP2(q_new, EA, deltaL)
+        # Fb, Jb = getFbP2(q_new, EI, deltaL)
+        # Fs, Js = getFsP2(q_new, EA, deltaL)
         #print(Fb)
         #print(Fs)
         # print(Jb)
@@ -254,14 +254,14 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
 
         # Calculation of correction step from mass matrix
         # For use with one node
-        # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force), S_mat, z_vec)
-        # J_n = np.eye(len(q_old)) / dt**2.0
+        f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force), S_mat, z_vec)
+        J_n = np.eye(len(q_old)) / dt**2.0
         # For use with 2 nodes
         # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs), S_mat, z_vec)
         # J_n = np.eye(len(q_old)) / dt**2.0 + (Js)
         # For use with 3 nodes or more
-        f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs+Fb), S_mat, z_vec)
-        J_n = np.eye(len(q_old)) / dt**2.0 + (Js + Jb)
+        # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs+Fb), S_mat, z_vec)
+        # J_n = np.eye(len(q_old)) / dt**2.0 + (Js + Jb)
 
         
         # print(f_n)
