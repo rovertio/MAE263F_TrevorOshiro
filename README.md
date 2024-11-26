@@ -1,6 +1,15 @@
 # MAE263F_TrevorOshiro
 Repository for code and files written for the MAE263F class at UCLA. 
 
+### Midterm Report/Presentation Submission:
+All necessary files for the project progress as of the midterm can be found within the ProjectCodes directory under the MidtermConcept directory in this repository. The file for the presentation is the pdf file titled MidtermPresentation, and the file for the report is the pdf file titled as Midterm.
+
+The code developed for this stage of the project for the Modified Mass Method implementation is found with the python file titled Bounce, and the python files containing helper functions within the HelperFunctions directory (within the MidtermConcept directory). The files are set to be run for one node upon execution of Bounce.py. Including more nodes for simulation of a straight beam is possible by uncommenting lines for variables f_n and J_n within the MMMadj.py file in the HelperFunctions directory. Lines initiating the node number and initial conditions would also need to be uncommented within the main function of the Bounce.py file.
+
+Plots for the vertical components of displacement, velocity, reaction force, and z vector can be obtained when running the scripts. These plots are saved within the NodePlots folder of within the MidtermConcept directory. Note that these plots are only for the first node created within the script. 
+
+For the program files related to the contact simulation via predictor/corrector methods, refer to the github repostory by Jessica Anz. All files related to this part of the project can be found within the Project_Dev directory in the repository.
+
 ### Homework 2 Submission:
 Libraries needed: Ipython.display, numpy, mpl_toolkits.mplot3d, matplotlib.pyplot
 The helper functions are all within the HelperFunctions folder that include computational functions needed within the main program file for the problem. 
