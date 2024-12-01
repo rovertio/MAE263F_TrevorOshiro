@@ -4,7 +4,7 @@ from IPython.display import clear_output # Only for IPython
 
 # Helper Functions for MMM
 # import HelperFunctions.collisions
-import MMMadj as MMMadj
+import MMM_functions as MMMadj
 from HelperFunctions.BendingFun import getFbP1
 from HelperFunctions.StrechingFun import getFsP1
 
@@ -90,7 +90,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
 
       if close_flag == 1:
         itt = 0
-        #dt = 1e-7
+        
         #np.append(coll_u, np.zeros(int(dt_def/dt_c)))
         while close_flag == 1:
           print("close to contact")
@@ -116,21 +116,15 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
             t_lastc = timeStep
             break
           itt += 1
+
           if itt == int(dt_def/dt_c):
               break
-        #dt = dt_def
+        
       else:
         s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_def, mass, force)
-        #r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec)
-
         u = (q - q0) / dt_def                     # update velocity
         print("Velocity: " + str(u))
         q0 = q.copy()                         # update old position
-
-
-      # u = (q - q0) / dt                     # update velocity
-      # print("Velocity: " + str(u))
-      # q0 = q.copy()                         # update old position
 
       all_rf[timeStep] = r_force[1]
       all_zvec[timeStep] = z_vec[1]
@@ -181,7 +175,7 @@ def plotting(all_pos, all_u, all_rf, all_zvec, coll_u, totalTime, Nsteps):
     plt.title("Vertical discplacement of node 1")
     plt.legend()
     plot1_name = 'VerticalDisplacementNode1.png'
-    plt.savefig('MidtermConcept/NodePlots/' + str(plot1_name))
+    plt.savefig('FinalImplementation/SurfaceBouncePlots/' + str(plot1_name))
 
     plt.figure(3)
     plt.clf()
@@ -191,7 +185,7 @@ def plotting(all_pos, all_u, all_rf, all_zvec, coll_u, totalTime, Nsteps):
     plt.title("Vertical velocity of node 1")
     plt.legend()
     plot2_name = 'VerticalVelocityNode1.png'
-    plt.savefig('MidtermConcept/NodePlots/' + str(plot2_name))
+    plt.savefig('FinalImplementation/SurfaceBouncePlots/' + str(plot2_name))
 
     plt.figure(4)
     plt.clf()
@@ -202,7 +196,7 @@ def plotting(all_pos, all_u, all_rf, all_zvec, coll_u, totalTime, Nsteps):
     plt.title("Vertical reaction force on node 1")
     plt.legend()
     plot3_name = 'ReactionForceNode1.png'
-    plt.savefig('MidtermConcept/NodePlots/' + str(plot3_name))
+    plt.savefig('FinalImplementation/SurfaceBouncePlots/' + str(plot3_name))
 
     plt.figure(5)
     plt.clf()
@@ -213,7 +207,7 @@ def plotting(all_pos, all_u, all_rf, all_zvec, coll_u, totalTime, Nsteps):
     plt.title("Vertical component of z vector")
     plt.legend()
     plot4_name = 'ZVectorNode1.png'
-    plt.savefig('MidtermConcept/NodePlots/' + str(plot4_name))
+    plt.savefig('FinalImplementation/SurfaceBouncePlots/' + str(plot4_name))
 
     # ct = np.linspace(0, len(coll_u), len(coll_u))
     # plt.figure(6)
@@ -271,7 +265,7 @@ if __name__ == '__main__':
     maximum_iter = 100
     #totalTime = 0.453
     #totalTime = 0.5
-    totalTime = 5
+    totalTime = 7
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 
