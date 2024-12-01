@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from IPython.display import clear_output # Only for IPython
 
 # Helper Functions for MMM
@@ -30,6 +31,9 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
     end_flag = 0
     close_d = 1e-5                # 1e-5
     close_off = 5e-6              # 5e-6
+
+    # Coordinates for reference reactangle in contact
+    xrec, yrec = [0.02, 0.02, 0.1], [-0.04, 0, 0]
     
     r_force = np.zeros(3*nv)
     s_mat = np.eye(3*nv)
@@ -44,7 +48,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
 
       #s_mat = np.eye(3*nv)
       #z_vec = np.zeros(3*nv)
-      r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat)
+      r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, free_ix)
       print("Node position: " + str(q))
       print("Reaction force: " + str(r_force))
       con_ind, free_ind, q_con, mat, flag_c, close_flag = MMMadj.test_col(q, r_force, close_d, 0)
@@ -60,7 +64,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
           print("------------------------------------------------------ u = %f\n" % (u[1]))
           s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_c, mass, force)
 
-          r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_c, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat)
+          r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_c, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, free_ix)
 
           u = (q - q0) / dt_c                     # update velocity
           q0 = q.copy()                         # update old position
@@ -72,7 +76,9 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
           if flag_c == 1:
             s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_c, mass, force)
             print("Z vector: " + str(z_vec))
-            r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat)
+            r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, free_ix)
+            
+            # End simulation if excessive low amplitude oscillations
             if timeStep - t_lastc < 300:
                 end_flag = 1
             t_lastc = timeStep
@@ -99,31 +105,34 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       all_u[timeStep] = u[1]                # Save the positions
 
       #Break if excessive low oscillations
-      if end_flag == 1:
-        for ii in range(int(len(q_old)/3)):
-          all_rfx[timeStep:-1][ii] = 0
-          all_rfy[timeStep:-1][ii] = 0
+      # if end_flag == 1:
+      #   print("terminated for oscillations")
+      #   for ii in range(int(len(q_old)/3)):
+      #     all_rfx[timeStep:-1][ii] = 0
+      #     all_rfy[timeStep:-1][ii] = 0
 
-        all_zvec[timeStep:-1] = 0
-        all_pos[timeStep:-1] = 0
-        all_u[timeStep:-1] = 0                # Save the positions
-        break
+      #   all_zvec[timeStep:-1] = 0
+      #   all_pos[timeStep:-1] = 0
+      #   all_u[timeStep:-1] = 0                # Save the positions
+      #   break
 
       # Plot the positions
       if timeStep%500 == 0:
         x1 = q[0::3]  # Selects every second element starting from index 0
-        print(x1)
+        #print(x1)
         x2 = q[1::3]  # Selects every second element starting from index 1
-        print(x2)
-        h1 = plt.figure(1)
+        #print(x2)
         plt.clf()  # Clear the current figure
         plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
+        plt.plot(xrec, yrec)
         plt.title('time: ' + str(ctime))  # Format the title with the current time
         plt.xlim([-0.1, 1.1])
         plt.axis('equal')  # Set equal scaling
         plt.xlabel('x [m]')
         plt.ylabel('y [m]')
-        plt.show()
+        plot1_name = 'GripperGeom' + str(round(ctime, 3)) + '.png' 
+        plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/BC_GeomPlots/' + str(plot1_name))
+        # plt.show()
 
       ctime += dt # Update the current time
     
@@ -213,7 +222,7 @@ if __name__ == '__main__':
 
     #-----------------------------------------------------------
     # Inputs for using more than one node
-    nv = 3
+    nv = 26
     ne = nv - 1
     deltaL = RodLength / (nv - 1)            # Discrete length
     ndof = 3 * nv
@@ -222,6 +231,7 @@ if __name__ == '__main__':
     fixed_index = np.array([0, 1, 2])
     # Get the difference of two sets using np.setdiff1d
     free_ix = np.setdiff1d(all_DOFs, fixed_index)
+    free_ix = fixed_index
 
     nodes = np.zeros((nv, 2))
     for c in range(nv):
@@ -242,7 +252,7 @@ if __name__ == '__main__':
     maximum_iter = 100
     #totalTime = 0.453
     #totalTime = 0.5
-    totalTime = 0.12
+    totalTime = 0.07
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 

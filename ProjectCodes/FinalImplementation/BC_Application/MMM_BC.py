@@ -125,8 +125,9 @@ def test_col(q_test, r_force, close_d, close_off):
             proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
 
         #print(proj_vec[1])
-        if q_test[3*ii + 1] < 0:
-            #q_con[3*ii + 1] = 0.1*(1-ii)
+        #print(q_test[3*ii])
+        if q_test[3*ii + 1] < 0 and q_test[3*ii] > 0.012:
+            
             q_con[3*ii + 1] = 0
             mat[ii] = np.array([[0,1,0],[0,0,0]])
             #print(mat)
@@ -166,7 +167,7 @@ def test_col(q_test, r_force, close_d, close_off):
 
 
 
-def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec, mat):
+def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec, mat, free_ix):
     # Calculates the placement of the node assuming no collision
     # q_con gives enforced displacement values at nodes from collision
 
@@ -182,6 +183,12 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
         # print(np.linalg.norm(f_n))
         Fb, Jb = getFbP2(q_new, EI, deltaL)
         Fs, Js = getFsP2(q_new, EA, deltaL)
+
+        Fb[free_ix] = 0
+        Fs[free_ix] = 0
+        Jb[np.ix_(free_ix, free_ix)] = 0
+        Js[np.ix_(free_ix, free_ix)] = 0
+
         #print(Fb)
         #print(Fs)
         # print(Jb)
