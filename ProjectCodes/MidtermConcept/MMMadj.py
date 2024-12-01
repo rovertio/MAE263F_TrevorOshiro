@@ -47,6 +47,14 @@ def MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec):
 
     return f_n
 
+
+def RF_eq(q_new, q_old, u_old, dt, mass, force):
+
+    r_force = (mass / dt) * ( ((q_new - q_old) / dt) - u_old ) - (force)
+
+    return r_force
+
+
 def MMM_zcalc(q_con, q_old, u_old, dt, mass, force, S_mat):
     # Iterates over nodes and adjusts according to collision presence
 
@@ -60,7 +68,6 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
     # mat is a 3D array containing vectors p and q for a 2D case
     # con_node -> indicates nodes that were free to be constricted by this step
     # free_node -> indicates nodes that were constrained to be freed in this step
-    # example call for two nodes: MMM_Scalc([[[1, 0, 0], [0, 0, 0]], [[1, 0, 0], [0, 0, 0]]], 6, [0,1,2,3,4,5])
 
     ndof = len(q_old)                               # Degree of freedom from all nodes
     s_mat = np.eye(ndof)                            # Initialize the S matrix
@@ -71,7 +78,7 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
 
     # Calculates the new S and z terms to correct in the objective function
     # If any nodes need to be constrained
-    if len(con_ind) > 2:
+    if len(con_ind) > 1:
         for ii in range(int(len(con_ind)/3)):
             S_n = np.eye(3) - np.outer(mat[ii][0], mat[ii][0]) - np.outer(mat[ii][1], mat[ii][1])
             z_n = MMM_zcalc(q_con[(con_ind[3*ii]):(con_ind[3*ii] + 3)], q_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], \
@@ -83,7 +90,7 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
             z_vec[(con_ind[3*ii]):(con_ind[3*ii] + 3)] = z_n
 
     # If any nodes need to be freed
-    if len(free_ind) > 2:
+    if len(free_ind) > 1:
         for kk in range(int(len(free_ind)/3)):
             S_n = np.eye(3)
             z_n = np.zeros(3)
@@ -167,7 +174,7 @@ def free_cal(q_guess, q_old, u_old, dt, mass, force, tol, ob_flag, mat, con_node
 
 
 
-def test_col(q_test, r_force):
+def test_col(q_test, r_force, close_d, close_off):
     # free_ind indicates nodes currently free that are being tested
     # con_ind indicates nodes currently constrained that are being tested
     q_con = q_test
@@ -177,6 +184,7 @@ def test_col(q_test, r_force):
     free_ind = free_ind.astype(int)
     mat = np.zeros((int(len(q_test)/3),2,3))
     flag = 0
+    close_flag = 0
 
     # print(q_test)
     # print(r_force)
@@ -190,7 +198,7 @@ def test_col(q_test, r_force):
             proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
 
         #print(proj_vec[1])
-        if q_test[3*ii + 1] < 1e-6:
+        if q_test[3*ii + 1] < 0:
             #q_con[3*ii + 1] = 0.1*(1-ii)
             q_con[3*ii + 1] = 0
             mat[ii] = np.array([[0,1,0],[0,0,0]])
@@ -198,15 +206,15 @@ def test_col(q_test, r_force):
             con_ind[ii] = ii + 1
             print("Below surface")
             flag = 1
-        elif q_test[3*ii + 1] >= 1e-6 and proj_vec[1] < 0:
+        elif q_test[3*ii + 1] >= 0 and proj_vec[1] <= 0:
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
             print("Negative reaction")
-        elif q_test[3*ii + 1] >= 1e-6 and np.round(proj_vec[1],8) == 0:
-            # No reaction force -> free falling
-            free_ind[ii] = ii + 1
-            mat[ii] = np.array([[0,0,0],[0,0,0]])
-            print("Zero force")
+            if q_test[3*ii + 1] < (close_d + close_off):
+                free_ind[ii] = ii + 1
+                mat[ii] = np.array([[0,0,0],[0,0,0]])
+                close_flag = 1
+                print("Close")
         else:
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
@@ -227,7 +235,7 @@ def test_col(q_test, r_force):
         free_ind = np.array([-1])
 
     #print(mat)
-    return con_ind, free_ind, q_con, mat, flag
+    return con_ind, free_ind, q_con, mat, flag, close_flag
 
 
 
@@ -258,19 +266,21 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
         J_n = np.eye(len(q_old)) / dt**2.0
         # For use with 2 nodes
         # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs), S_mat, z_vec)
-        # J_n = np.eye(len(q_old)) / dt**2.0 + (Js)
+        # J_n = np.eye(len(q_old)) / dt**2.0 + S_mat @ (Js)
         # For use with 3 nodes or more
         # f_n = MMM_eq(q_new, q_old, u_old, dt, mass, (force+Fs+Fb), S_mat, z_vec)
-        # J_n = np.eye(len(q_old)) / dt**2.0 + (Js + Jb)
+        # J_n = np.eye(len(q_old)) / dt**2.0 + S_mat @ (Js + Jb)
 
-        
         # print(f_n)
         # print(J_n)
+
         # Solve for dq
         dq = np.linalg.solve(J_n, f_n)
-        #print(dq)
+        # print(dq)
+        # print(q_new)
         
         q_new = q_new - dq                            # Update q_new
+        #print(q_new)
         # Calculate error using the change in position (not force, but using force is OK too)
         error = np.linalg.norm(dq)
 
@@ -280,8 +290,11 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
             flag = -1
             break
     #print(iter_count)
+
     # Calculation of reaction force (done within iteration)
-    r_force = mass * f_n
+    r_force = RF_eq(q_new, q_old, u_old, dt, mass, force)
+    #r_force = mass * f_n
+    #print(r_force)
 
     # Calculates projection of force onto the constraints if there are
     # if len(con_ind) > 0:
@@ -299,24 +312,24 @@ if __name__ == '__main__':
     # print(a[np.ix_(np.array([1,2]), np.array([1,2]))])
     # print(getNnum(np.array([0,1,2,9,10,11,12,13,14])))
 
-    nv = 2
+    nv = 1
     # nv = 2
-    # q_old = np.zeros(3)
-    q_old = np.zeros(6)
+    q_old = np.array([0, 0.00958374, 0])
+    #q_old = np.zeros(6)
     q_guess = q_old.copy()
-    # u_old = np.zeros(3)
-    u_old = np.zeros(6)
-    dt = 1e-3
+    u_old = np.array([0, -4.40446291, 0])
+    #u_old = np.zeros(6)
+    dt = 1e-6
     mass = 0.01
-    # force = mass * np.array([0, -9.81, 0])
-    force = mass * np.array([0, -9.81, 0, 0, -9.81, 0])
+    force = mass * np.array([0, -9.81, 0])
+    #force = mass * np.array([0, -9.81, 0, 0, -9.81, 0])
     tol = 1e-6
     ob_flag = -1
-    # mat = [[[0, 1, 0], [0, 0, 0]]]
-    mat = [[[0, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]
-    # con_nodes = [1]
-    #q_con = np.array([0, 0.001, 0])
-    q_con = np.array([0, 0.001, 0, 0, 0, 0])
+    mat = [[[0, 1, 0], [0, 0, 0]]]
+    #mat = [[[0, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]
+    con_nodes = [1]
+    q_con = np.array([0, 0, 0])
+    #q_con = np.array([0, 0.001, 0, 0, 0, 0])
     con_ind = [0,1,2]
     free_ind = [3,4,5]
      
@@ -336,7 +349,15 @@ if __name__ == '__main__':
     # print(mat[0][0])
     # print(np.array(mat[0][0]) * np.dot(mat[0][0], [0.5, 0.5, 0.3]))
     
-    S, z = MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force)
-    print(S)
-    print(z)
+    # S, z = MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force)
+    # print(S)
+    # print(z)
 
+    EA = 1
+    EI = 1
+    deltaL = 0.01
+    s_mat = np.eye(3)
+    z_vec = np.zeros(3)
+
+    r_force, q, flag = MMM_cal(q_old, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, s_mat, z_vec)
+    print(q)
