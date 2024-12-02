@@ -16,6 +16,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
     all_pos = np.zeros(Nsteps)
     all_rfx = np.zeros((Nsteps,(int(len(q_old)/3))))
     all_rfy = np.zeros((Nsteps,(int(len(q_old)/3))))
+    all_rfval = np.zeros((Nsteps,(int(len(q_old)/3))))
     all_zvec = np.zeros(Nsteps)
     all_u = np.zeros(Nsteps)
     coll_u = np.zeros(Nsteps)
@@ -33,7 +34,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
     close_off = 5e-6              # 5e-6
 
     # Coordinates for reference reactangle in contact
-    xrec, yrec = [0.02, 0.02, 0.1], [-0.04, 0, 0]
+    xrec, yrec = [-0.04, 0, 0], [-0.02, -0.02, -0.1]
     
     r_force = np.zeros(3*nv)
     s_mat = np.eye(3*nv)
@@ -41,8 +42,8 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
 
     for timeStep in range(1, Nsteps): # Loop over time steps
       print("--------------------------------------------------------------------------------------------- t = %f\n" % ctime)
-      print("--------------------------------------------------------------------------------- y = %f\n" % (q0[1]) )
-      print("-------------------------------------------------------------------- u = %f\n" % (u[1]))
+      print("--------------------------------------------------------------------------------- x = %f\n" % (q0[0]) )
+      print("-------------------------------------------------------------------- u = %f\n" % (u[0]))
       #print('t = %f\n' % ctime)
       flag_c = 0
 
@@ -54,14 +55,15 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       con_ind, free_ind, q_con, mat, flag_c, close_flag = MMMadj.test_col(q, r_force, close_d, 0)
       print("Constraint nodes: " + str(con_ind))
       print("Free nodes: " + str(free_ind))
+      #print(force)
 
       if close_flag == 1:
         itt = 0        
         #np.append(coll_u, np.zeros(int(dt_def/dt_c)))
         while close_flag == 1:
           print("close to contact")
-          print("-------------------------------------------------------------------------- y = %f\n" % (q0[1]))
-          print("------------------------------------------------------ u = %f\n" % (u[1]))
+          print("-------------------------------------------------------------------------- x = %f\n" % (q0[0]))
+          print("------------------------------------------------------ u = %f\n" % (u[0]))
           s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_c, mass, force)
 
           r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_c, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, free_ix)
@@ -90,6 +92,19 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
         
       else:
         s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_def, mass, force)
+        if flag_c == 1:
+          #print(mat)
+          #s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_c, mass, force)
+          # print("S Matrix: " + str(s_mat))
+          print("Z vector: " + str(z_vec))
+          r_force, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, free_ix)
+              
+          # End simulation if excessive low amplitude oscillations
+          if timeStep - t_lastc < 300:
+            end_flag = 1
+            t_lastc = timeStep
+            break
+        
         u = (q - q0) / dt_def                     # update velocity
         print("Velocity: " + str(u))
         q0 = q.copy()                         # update old position
@@ -98,11 +113,23 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       for ii in range(int(len(q_old)/3)):
         all_rfx[timeStep][ii] = r_force[3*ii]
         all_rfy[timeStep][ii] = r_force[3*ii + 1]
+        all_rfval[timeStep][ii] = np.sqrt((np.square(r_force[3*ii + 1]))+(np.square(r_force[3*ii])))
+
+      # Data for visualizing reaction force concentrations
+      # Normalizing reaction forces
+      if np.max(np.abs(all_rfval[timeStep])) == 0:
+        # If zero contact reaction forces present
+        norm_rf = (-5)*np.ones(int(len(q_old)/3))
+      else:
+        # If contact reaction forces present
+        norm_rf = ((np.abs(all_rfval[timeStep]) / np.max(np.abs(all_rfval[timeStep]))))
+      # print(all_rfval[timeStep, :])
+      #print(norm_rf)
       
       # Storing displacement, velocity, and z vector values for plotting
-      all_zvec[timeStep] = z_vec[1]
-      all_pos[timeStep] = q0[1]
-      all_u[timeStep] = u[1]                # Save the positions
+      all_zvec[timeStep] = z_vec[6]
+      all_pos[timeStep] = q0[6]
+      all_u[timeStep] = u[6]                # Save the positions
 
       #Break if excessive low oscillations
       # if end_flag == 1:
@@ -117,22 +144,28 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       #   break
 
       # Plot the positions
-      if timeStep%500 == 0:
+      if timeStep%50 == 0 and ctime >= 0.055:
         x1 = q[0::3]  # Selects every second element starting from index 0
         #print(x1)
         x2 = q[1::3]  # Selects every second element starting from index 1
         #print(x2)
         plt.clf()  # Clear the current figure
-        plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
+        plt.plot(x1, x2, 'k-')  # 'ko-' indicates black color with circle markers and solid lines
+        for jj in range(int(len(q_old)/3)):
+           if norm_rf[jj] == -5:
+              plt.plot(x1[jj], x2[jj], 'o-', color=(0, 0, 1), markeredgewidth=1.5, markeredgecolor='black')
+           else:
+              plt.plot(x1[jj], x2[jj], 'o-', color=(np.abs((norm_rf[jj])), (1 - np.abs(norm_rf[jj])), 0), markeredgewidth=1.5, markeredgecolor='black')
         plt.plot(xrec, yrec)
         plt.title('time: ' + str(ctime))  # Format the title with the current time
-        plt.xlim([-0.1, 1.1])
+        plt.xlim([-0.2, 0.2])
+        plt.ylim([-1.1, 0.1])
         plt.axis('equal')  # Set equal scaling
         plt.xlabel('x [m]')
         plt.ylabel('y [m]')
-        plot1_name = 'GripperGeom' + str(round(ctime, 3)) + '.png' 
+        plot1_name = 'GripperGeom' + str(round(ctime, 5)) + '.png' 
         plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/BC_GeomPlots/' + str(plot1_name))
-        # plt.show()
+        plt.show()
 
       ctime += dt # Update the current time
     
@@ -140,10 +173,10 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
     # print(np.size(all_rfx[0,:]))
     # print(np.size(all_rfy[:,1]))
 
-    return all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, u
+    return all_pos, all_u, all_rfx, all_rfy, all_rfval, all_zvec, coll_u, u
 
 
-def plotting(all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, totalTime, Nsteps):
+def plotting(all_pos, all_u, all_rfx, all_rfy, all_rfval, all_zvec, coll_u, totalTime, Nsteps):
     # Plot
     t = np.linspace(0, totalTime, Nsteps)
     # print(len(all_pos))
@@ -171,11 +204,11 @@ def plotting(all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, totalTime, Nste
     plt.figure(4)
     plt.clf()
     for jj in range(int(np.size(all_rfx,1))):
-      plt.plot(t, all_rfx[:,jj], 'o', label='Node ' + str(jj)) # x,y plot for the first node
+      plt.plot(t, all_rfx[:,jj], 'o', label='Node ' + str(jj + 1)) # x,y plot for the first node
     #plt.xlim([1.27, 1.34])
     plt.xlabel('t [s]')
     plt.ylabel('rf [N]')
-    plt.title("Horizontal reaction force on node 1")
+    plt.title("Horizontal reaction force on nodes")
     plt.legend()
     plot3_name = 'HorizontalReactionForceNodes.png'
     plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot3_name))
@@ -183,11 +216,23 @@ def plotting(all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, totalTime, Nste
     plt.figure(5)
     plt.clf()
     for jj in range(int(np.size(all_rfx,1))):
-      plt.plot(t, all_rfy[:,jj], 'o', label='Node ' +  str(jj))
+      plt.plot(t, all_rfy[:,jj], 'o', label='Node ' +  str(jj + 1))
     #plt.xlim([1.27, 1.34])
     plt.xlabel('t [s]')
     plt.ylabel('rf [N]')
-    plt.title("Vertical reaction force on node 1")
+    plt.title("Vertical reaction force on nodes")
+    plt.legend()
+    plot4_name = 'VerticalReactionForceNodes.png'
+    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot4_name))
+
+    plt.figure(6)
+    plt.clf()
+    for jj in range(int(np.size(all_rfx,1))):
+      plt.plot(t, all_rfval[:,jj], 'o', label='Node ' +  str(jj + 1))
+    #plt.xlim([1.27, 1.34])
+    plt.xlabel('t [s]')
+    plt.ylabel('rf [N]')
+    plt.title("Magnitude of reaction force on nodes")
     plt.legend()
     plot4_name = 'VerticalReactionForceNodes.png'
     plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot4_name))
@@ -207,10 +252,6 @@ def plotting(all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, totalTime, Nste
 
 if __name__ == '__main__':
 
-    # Mass
-    RodLength = 0.10                          # Rod Length
-    r0 = 1e-3                                 # Cross-sectional radius of rod
-
     #----------------------------------------------------------
     # Inputs for using one node
     # nv = 1
@@ -222,27 +263,40 @@ if __name__ == '__main__':
 
     #-----------------------------------------------------------
     # Inputs for using more than one node
-    nv = 26
+
+    # Mass
+    RodLength = 0.10                          # Rod Length
+    r0 = 1e-3                                 # Cross-sectional radius of rod
+
+    nv = 10
     ne = nv - 1
     deltaL = RodLength / (nv - 1)            # Discrete length
     ndof = 3 * nv
 
     all_DOFs = np.arange(ndof)
-    fixed_index = np.array([0, 1, 2])
+    fix_nodesNum = np.array([1])
+    fix_nodes = max(fix_nodesNum)
+    fixed_index = MMMadj.get_matind(fix_nodesNum)
+    #fixed_index = np.array([0, 1, 2, 3, 4, 5])
     # Get the difference of two sets using np.setdiff1d
     free_ix = np.setdiff1d(all_DOFs, fixed_index)
     free_ix = fixed_index
 
-    nodes = np.zeros((nv, 2))
-    for c in range(nv):
-      nodes[c, 0] = c * deltaL
-      nodes[c, 1] = 0.01
+    # nodes = np.zeros((nv, 2))
+    # for c in range(nv):
+    #   nodes[c, 1] = (-1) * c * deltaL
+    #   nodes[c, 0] = 0.01
+    # q0 = np.zeros(ndof)
+    # for k in range(nv):
+    #   q0[3 * k] = nodes[k, 0]
+    #   q0[3 * k + 1] = nodes[k, 1]
+    #   q0[3*k + 2] = 0
     q0 = np.zeros(ndof)
-    for k in range(nv):
-      q0[3 * k] = nodes[k, 0]
-      q0[3 * k + 1] = nodes[k, 1]
-      q0[3*k + 2] = 0
-    print(q0)
+    for s in range(nv):
+      q0[3 * s] = 0.01
+      q0[3 * s + 1] = (-1) * s * deltaL
+      q0[3*s + 2] = 0
+    #print(q0)
     q = q0.copy()
 
     #------------------------------------------------------------
@@ -252,7 +306,7 @@ if __name__ == '__main__':
     maximum_iter = 100
     #totalTime = 0.453
     #totalTime = 0.5
-    totalTime = 0.07
+    totalTime = 0.064
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 
@@ -271,9 +325,11 @@ if __name__ == '__main__':
     # Weight
     W = np.zeros(ndof)
     g = np.array([0, -9.8, 0])  # m/s^2 - gravity
-    for k in range(nv):
-      W[3*k]   = mass * g[0] # Weight for x_k
+    grip_acc = np.array([-9.8, 0, 0])
+    for k in range(fix_nodes, nv):
       W[3*k+1] = mass * g[1] # Weight for y_k
+    for p in range(fix_nodes):
+      W[3*p]   = mass * grip_acc[0] # Weight for x_k
     
     # Velocity
     u = np.zeros(ndof)
@@ -282,5 +338,5 @@ if __name__ == '__main__':
     mat = np.zeros((nv,2,3))
     q_con = np.zeros(ndof)
 
-    all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, u = simloop(q0, q0, u, dt, mass, EI, EA, deltaL, W, tol_dq, mat, nv, free_ix)
-    plotting(all_pos, all_u, all_rfx, all_rfy, all_zvec, coll_u, totalTime, Nsteps)
+    all_pos, all_u, all_rfx, all_rfy, all_rfval, all_zvec, coll_u, u = simloop(q0, q0, u, dt, mass, EI, EA, deltaL, W, tol_dq, mat, nv, free_ix)
+    plotting(all_pos, all_u, all_rfx, all_rfy, all_rfval, all_zvec, coll_u, totalTime, Nsteps)

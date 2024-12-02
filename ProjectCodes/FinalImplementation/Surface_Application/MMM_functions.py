@@ -76,12 +76,18 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
     # Calculates the new S and z terms to correct in the objective function
     # If any nodes need to be constrained
     if len(con_ind) > 1:
-        for ii in range(int(len(con_ind)/3)):
-            S_n = np.eye(3) - np.outer(mat[ii][0], mat[ii][0]) - np.outer(mat[ii][1], mat[ii][1])
+        # Specify the node corresponding to the indices
+        Nnum_con = getNnum(con_ind)
+        for ii in range(int(len(Nnum_con))):
+            cur_node = Nnum_con[ii] - 1
+            S_n = np.eye(3) - np.outer(mat[cur_node][0], mat[cur_node][0]) - np.outer(mat[cur_node][1], mat[cur_node][1])
+            # print(cur_node)
+            # print(mat[cur_node][0])
+            # print(S_n)
             z_n = MMM_zcalc(q_con[(con_ind[3*ii]):(con_ind[3*ii] + 3)], q_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], \
                             u_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], dt, mass, force[(con_ind[3*ii]):(con_ind[3*ii] + 3)], S_n)
             #print(z_n)
-            z_n = ( np.dot(mat[ii][0], z_n) ) * np.array(mat[ii][0])
+            z_n = ( np.dot(mat[cur_node][0], z_n) ) * np.array(mat[cur_node][0])
 
             s_mat[(con_ind[3*ii]):(con_ind[3*ii] + 3), (con_ind[3*ii]):(con_ind[3*ii] + 3)] = S_n
             z_vec[(con_ind[3*ii]):(con_ind[3*ii] + 3)] = z_n

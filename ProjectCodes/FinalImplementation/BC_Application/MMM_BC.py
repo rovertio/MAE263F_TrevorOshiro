@@ -53,17 +53,19 @@ def RF_eq(q_new, q_old, u_old, dt, mass, force, mat):
     r_force = np.zeros(int(len(q_old)))
 
     for ii in range(int(len(q_old)/3)):
+
         r_fc = (mass / dt) * ( ((q_new[3*ii:3*ii+3] - q_old[3*ii:3*ii+3]) / dt) - u_old[3*ii:3*ii+3]) - (force[3*ii:3*ii+3])
         
         # Project the vector onto the contrained direction
         r_force[3*ii:3*ii+3] = (np.dot(mat[ii][0], r_fc)) * np.array(mat[ii][0])
+    
     return r_force
 
 
 def MMM_zcalc(q_con, q_old, u_old, dt, mass, force, S_mat):
     # Iterates over nodes and adjusts according to collision presence
-
-    z_vec = (1 / dt) * ( ((q_con - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force)
+    e_factor = 1
+    z_vec = e_factor*((1 / dt) * ( ((q_con - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force))
 
     return z_vec
 
@@ -81,12 +83,18 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
     # Calculates the new S and z terms to correct in the objective function
     # If any nodes need to be constrained
     if len(con_ind) > 1:
-        for ii in range(int(len(con_ind)/3)):
-            S_n = np.eye(3) - np.outer(mat[ii][0], mat[ii][0]) - np.outer(mat[ii][1], mat[ii][1])
+        # Specify the node corresponding to the indices
+        Nnum_con = getNnum(con_ind)
+        for ii in range(int(len(Nnum_con))):
+            cur_node = Nnum_con[ii] - 1
+            S_n = np.eye(3) - np.outer(mat[cur_node][0], mat[cur_node][0]) - np.outer(mat[cur_node][1], mat[cur_node][1])
+            # print(cur_node)
+            # print(mat[cur_node][0])
+            # print(S_n)
             z_n = MMM_zcalc(q_con[(con_ind[3*ii]):(con_ind[3*ii] + 3)], q_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], \
                             u_old[(con_ind[3*ii]):(con_ind[3*ii] + 3)], dt, mass, force[(con_ind[3*ii]):(con_ind[3*ii] + 3)], S_n)
             #print(z_n)
-            z_n = ( np.dot(mat[ii][0], z_n) ) * np.array(mat[ii][0])
+            z_n = ( np.dot(mat[cur_node][0], z_n) ) * np.array(mat[cur_node][0])
 
             s_mat[(con_ind[3*ii]):(con_ind[3*ii] + 3), (con_ind[3*ii]):(con_ind[3*ii] + 3)] = S_n
             z_vec[(con_ind[3*ii]):(con_ind[3*ii] + 3)] = z_n
@@ -115,6 +123,7 @@ def test_col(q_test, r_force, close_d, close_off):
     mat = np.zeros((int(len(q_test)/3),2,3))
     flag = 0
     close_flag = 0
+    p = np.array([1,0,0])
 
     for ii in range(int(len(q_test)/3)):
         # If the reaction force vector is zero
@@ -122,23 +131,23 @@ def test_col(q_test, r_force, close_d, close_off):
             proj_vec = np.zeros(3)
         else:
             unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
-            proj_vec = ( np.dot(np.array([0,1,0]), unit_r) ) * np.array([0,1,0])
+            proj_vec = ( np.dot(p, unit_r) ) * p
 
         #print(proj_vec[1])
         #print(q_test[3*ii])
-        if q_test[3*ii + 1] < 0 and q_test[3*ii] > 0.012:
+        if q_test[3*ii] < 0 and q_test[3*ii + 1] < -0.02:
             
-            q_con[3*ii + 1] = 0
-            mat[ii] = np.array([[0,1,0],[0,0,0]])
+            q_con[3*ii] = 0
+            mat[ii] = np.array([p,[0,0,0]])
             #print(mat)
             con_ind[ii] = ii + 1
             #print("Below surface")
             flag = 1
-        elif q_test[3*ii + 1] >= 0 and proj_vec[1] <= 0:
+        elif q_test[3*ii] >= 0 and proj_vec[0] <= 0 and q_test[3*ii + 1] < -0.02:
             free_ind[ii] = ii + 1
             mat[ii] = np.array([[0,0,0],[0,0,0]])
             #print("Negative reaction")
-            if q_test[3*ii + 1] < (close_d + close_off):
+            if q_test[3*ii] < (close_d + close_off):
                 free_ind[ii] = ii + 1
                 mat[ii] = np.array([[0,0,0],[0,0,0]])
                 close_flag = 1
