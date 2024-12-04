@@ -176,7 +176,7 @@ def test_col(q_test, r_force, close_d, close_off):
 
 
 
-def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec, mat, free_ix):
+def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec, mat, fix_ix):
     # Calculates the placement of the node assuming no collision
     # q_con gives enforced displacement values at nodes from collision
 
@@ -193,10 +193,10 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
         Fb, Jb = getFbP2(q_new, EI, deltaL)
         Fs, Js = getFsP2(q_new, EA, deltaL)
 
-        Fb[free_ix] = 0
-        Fs[free_ix] = 0
-        Jb[np.ix_(free_ix, free_ix)] = 0
-        Js[np.ix_(free_ix, free_ix)] = 0
+        Fb[fix_ix] = 0
+        Fs[fix_ix] = 0
+        Jb[np.ix_(fix_ix, fix_ix)] = 0
+        Js[np.ix_(fix_ix, fix_ix)] = 0
 
         #print(Fb)
         #print(Fs)
@@ -236,15 +236,9 @@ def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, 
 
     # Calculation of reaction force (done within iteration)
     r_force = RF_eq(q_new, q_old, u_old, dt, mass, force, mat)
-    #r_force = mass * f_n
-    #print(r_force)
+    f_in = Fb + Fs
 
-    # Calculates projection of force onto the constraints if there are
-    # if len(con_ind) > 0:
-    #     for jj in range(int(ndof/3) - 1):
-    #         f_n[con_ind[(3*jj):(3*jj + 3)]] = ( np.dot(mat[jj][0], f_n[con_ind[(3*jj):(3*jj + 3)]]) ) * np.array(mat[jj][0])
-
-    return r_force, q_new, flag
+    return r_force, f_in, q_new, flag
 
 
 if __name__ == '__main__':
