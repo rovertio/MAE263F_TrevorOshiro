@@ -36,12 +36,8 @@ def getNnum(ind):
     return Nnum
 
 
-
 def MMM_eq(q_new, q_old, u_old, dt, mass, force, S_mat, z_vec):
     # Iterates over nodes and adjusts according to collision presence
-
-    # print(S_mat)
-    #print(force)
 
     f_n = (1 / dt) * ( ((q_new - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force) - z_vec
 
@@ -68,7 +64,6 @@ def MMM_zcalc(q_con, q_old, u_old, dt, mass, force, S_mat):
     z_vec = e_factor*((1 / dt) * ( ((q_con - q_old) / dt) - u_old ) - ((1/mass)* S_mat @ force))
 
     return z_vec
-
 
 
 def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
@@ -109,7 +104,6 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
             z_vec[(free_ind[3*kk]):(free_ind[3*kk] + 3)] = z_n
 
     return s_mat, z_vec
-
 
 
 def test_col(q_test, r_force, close_d, close_off):
@@ -173,7 +167,6 @@ def test_col(q_test, r_force, close_d, close_off):
 
     #print(mat)
     return con_ind, free_ind, q_con, mat, flag, close_flag
-
 
 
 def MMM_cal(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, S_mat, z_vec, mat, fix_ix):

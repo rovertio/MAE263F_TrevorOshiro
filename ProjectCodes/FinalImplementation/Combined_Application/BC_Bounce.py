@@ -5,9 +5,46 @@ from IPython.display import clear_output # Only for IPython
 
 # Helper Functions for MMM
 # import HelperFunctions.collisions
-import MMM_BC as MMMadj
+import MMM_Combine as MMMadj
 from HelperFunctions.BendingFun import getFbP1
 from HelperFunctions.StrechingFun import getFsP1
+
+
+def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime):
+
+  # Obtain components of reaction force from the vector and compute magnitude
+  for ii in range(int(len(q_old)/3)):
+    all_rfx[timeStep][ii] = r_force[3*ii]
+    all_rfy[timeStep][ii] = r_force[3*ii + 1]
+    all_rfval[timeStep][ii] = np.sqrt((np.square(r_force[3*ii + 1]))+(np.square(r_force[3*ii])))
+  if np.max(np.abs(all_rfval[timeStep])) == 0:
+    # If zero contact reaction forces present
+    norm_rf = (-5)*np.ones(int(len(q_old)/3))
+  else:
+    # If contact reaction forces present
+    norm_rf = ((np.abs(all_rfval[timeStep]) / np.max(np.abs(all_rfval[timeStep]))))
+  x1 = q[0::3]                  # Selects every second element starting from index 0
+  x2 = q[1::3]                  # Selects every second element starting from index 1
+  plt.clf()                     # Clear the current figure
+  plt.plot(x1, x2, 'k-')        # 'ko-' indicates black color with circle markers and solid lines
+  for jj in range(int(len(q_old)/3)):
+    if norm_rf[jj] == -5:
+        plt.plot(x1[jj], x2[jj], 'o-', color=(0, 0, 1), markeredgewidth=1.5, markeredgecolor='black')
+    else:
+        plt.plot(x1[jj], x2[jj], 'o-', color=(np.abs((norm_rf[jj])), (1 - np.abs(norm_rf[jj])), 0), markeredgewidth=1.5, markeredgecolor='black')
+  #plt.plot(xrec, yrec)
+  plt.title('time: ' + str(ctime))  # Format the title with the current time
+  #plt.axis('equal')  # Set equal scaling
+  plt.xlim([-0.01, 0.011])
+  plt.ylim([-0.11, 0.01])
+  plt.xlabel('x [m]')
+  plt.ylabel('y [m]')
+  plot1b_name = 'ContactGripperGeom' + str(round(ctime, 5)) + '.png' 
+  plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/Combine_ContactPlots/' + str(plot1b_name))
+  plt.show()
+
+  return all_rfx, all_rfy, all_rfval
+
 
 
 def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv, fix_ix):
@@ -49,22 +86,17 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       print("--------------------------------------------------------------------------------------------- t = %f\n" % ctime)
       print("--------------------------------------------------------------------------------- x = %f\n" % (q0[0]) )
       print("-------------------------------------------------------------------- u = %f\n" % (u[0]))
-      #print('t = %f\n' % ctime)
       flag_c = 0
 
-      #s_mat = np.eye(3*nv)
-      #z_vec = np.zeros(3*nv)
       r_force, f_in, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, fix_ix)
       print("Node position: " + str(q))
       print("Reaction force: " + str(r_force))
       con_ind, free_ind, q_con, mat, flag_c, close_flag = MMMadj.test_col(q, r_force, close_d, 0)
       print("Constraint nodes: " + str(con_ind))
       print("Free nodes: " + str(free_ind))
-      #print(force)
 
       if close_flag == 1:
         itt = 0        
-        #np.append(coll_u, np.zeros(int(dt_def/dt_c)))
         while close_flag == 1:
           print("close to contact")
           print("-------------------------------------------------------------------------- x = %f\n" % (q0[0]))
@@ -82,35 +114,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
             r_force, f_in, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, fix_ix)
             
             #--------------------------------------------------------
-            for ii in range(int(len(q_old)/3)):
-              all_rfx[timeStep][ii] = r_force[3*ii]
-              all_rfy[timeStep][ii] = r_force[3*ii + 1]
-              all_rfval[timeStep][ii] = np.sqrt((np.square(r_force[3*ii + 1]))+(np.square(r_force[3*ii])))
-            if np.max(np.abs(all_rfval[timeStep])) == 0:
-            # If zero contact reaction forces present
-              norm_rf = (-5)*np.ones(int(len(q_old)/3))
-            else:
-            # If contact reaction forces present
-              norm_rf = ((np.abs(all_rfval[timeStep]) / np.max(np.abs(all_rfval[timeStep]))))
-            x1 = q[0::3]  # Selects every second element starting from index 0
-            x2 = q[1::3]  # Selects every second element starting from index 1
-            plt.clf()  # Clear the current figure
-            plt.plot(x1, x2, 'k-')  # 'ko-' indicates black color with circle markers and solid lines
-            for jj in range(int(len(q_old)/3)):
-              if norm_rf[jj] == -5:
-                  plt.plot(x1[jj], x2[jj], 'o-', color=(0, 0, 1), markeredgewidth=1.5, markeredgecolor='black')
-              else:
-                  plt.plot(x1[jj], x2[jj], 'o-', color=(np.abs((norm_rf[jj])), (1 - np.abs(norm_rf[jj])), 0), markeredgewidth=1.5, markeredgecolor='black')
-            plt.plot(xrec, yrec)
-            plt.title('time: ' + str(ctime))  # Format the title with the current time
-            #plt.axis('equal')  # Set equal scaling
-            plt.xlim([-0.01, 0.011])
-            plt.ylim([-0.11, 0.01])
-            plt.xlabel('x [m]')
-            plt.ylabel('y [m]')
-            plot1a_name = 'ContactGripperGeom' + str(round(ctime, 5)) + '.png' 
-            plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/BC_ContactPlots/' + str(plot1a_name))
-            plt.show()
+            plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime)
             #------------------------------------------------------
 
             # End simulation if excessive low amplitude oscillations
@@ -126,42 +130,11 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       else:
         s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_def, mass, force)
         if flag_c == 1:
-          #print(mat)
-          #s_mat, z_vec = MMMadj.MMM_Szcalc(mat, con_ind, free_ind, q_con, q0, u, dt_c, mass, force)
-          # print("S Matrix: " + str(s_mat))
           print("Z vector: " + str(z_vec))
           r_force, f_in, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, fix_ix)
               
           #-----------------------------------------------
-          for ii in range(int(len(q_old)/3)):
-            all_rfx[timeStep][ii] = r_force[3*ii]
-            all_rfy[timeStep][ii] = r_force[3*ii + 1]
-            all_rfval[timeStep][ii] = np.sqrt((np.square(r_force[3*ii + 1]))+(np.square(r_force[3*ii])))
-          if np.max(np.abs(all_rfval[timeStep])) == 0:
-            # If zero contact reaction forces present
-            norm_rf = (-5)*np.ones(int(len(q_old)/3))
-          else:
-            # If contact reaction forces present
-            norm_rf = ((np.abs(all_rfval[timeStep]) / np.max(np.abs(all_rfval[timeStep]))))
-          x1 = q[0::3]  # Selects every second element starting from index 0
-          x2 = q[1::3]  # Selects every second element starting from index 1
-          plt.clf()  # Clear the current figure
-          plt.plot(x1, x2, 'k-')  # 'ko-' indicates black color with circle markers and solid lines
-          for jj in range(int(len(q_old)/3)):
-            if norm_rf[jj] == -5:
-                plt.plot(x1[jj], x2[jj], 'o-', color=(0, 0, 1), markeredgewidth=1.5, markeredgecolor='black')
-            else:
-                plt.plot(x1[jj], x2[jj], 'o-', color=(np.abs((norm_rf[jj])), (1 - np.abs(norm_rf[jj])), 0), markeredgewidth=1.5, markeredgecolor='black')
-          plt.plot(xrec, yrec)
-          plt.title('time: ' + str(ctime))  # Format the title with the current time
-          #plt.axis('equal')  # Set equal scaling
-          plt.xlim([-0.01, 0.011])
-          plt.ylim([-0.11, 0.01])
-          plt.xlabel('x [m]')
-          plt.ylabel('y [m]')
-          plot1b_name = 'ContactGripperGeom' + str(round(ctime, 5)) + '.png' 
-          plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/BC_ContactPlots/' + str(plot1b_name))
-          plt.show()
+          plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime)
           #--------------------------------------------------------
 
           # End simulation if excessive low amplitude oscillations
@@ -177,23 +150,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       # Storing internal forces for plotting
       for ii in range(int(len(q_old)/3)):
          all_fin[timeStep][ii] = np.sqrt((np.square(f_in[3*ii + 1]))+(np.square(f_in[3*ii])))
-      # Storing reaction forces for plotting
-      # for ii in range(int(len(q_old)/3)):
-      #   all_rfx[timeStep][ii] = r_force[3*ii]
-      #   all_rfy[timeStep][ii] = r_force[3*ii + 1]
-      #   all_rfval[timeStep][ii] = np.sqrt((np.square(r_force[3*ii + 1]))+(np.square(r_force[3*ii])))
-
-      # Data for visualizing reaction force concentrations
-      # Normalizing reaction forces
-      # if np.max(np.abs(all_rfval[timeStep])) == 0:
-      #   # If zero contact reaction forces present
-      #   norm_rf = (-5)*np.ones(int(len(q_old)/3))
-      # else:
-      #   # If contact reaction forces present
-      #   norm_rf = ((np.abs(all_rfval[timeStep]) / np.max(np.abs(all_rfval[timeStep]))))
-      # print(all_rfval[timeStep, :])
-      #print(norm_rf)
-      
+ 
       # Storing displacement, velocity, and z vector values for plotting
       all_zvec[timeStep] = z_vec[6]
       all_pos[timeStep] = q0[6]
@@ -214,16 +171,9 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
       # Plot the positions
       if timeStep%700 == 0:
         x1 = q[0::3]  # Selects every second element starting from index 0
-        #print(x1)
         x2 = q[1::3]  # Selects every second element starting from index 1
-        #print(x2)
         plt.clf()  # Clear the current figure
         plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-        # for jj in range(int(len(q_old)/3)):
-        #    if norm_rf[jj] == -5:
-        #       plt.plot(x1[jj], x2[jj], 'o-', color=(0, 0, 1), markeredgewidth=1.5, markeredgecolor='black')
-        #    else:
-        #       plt.plot(x1[jj], x2[jj], 'o-', color=(np.abs((norm_rf[jj])), (1 - np.abs(norm_rf[jj])), 0), markeredgewidth=1.5, markeredgecolor='black')
         plt.plot(xrec, yrec)
         plt.title('time: ' + str(ctime))  # Format the title with the current time
         plt.xlim([-0.01, 0.011])
@@ -253,7 +203,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal discplacement of node 1")
     plt.legend()
     plot1_name = 'HorizontalDisplacementNode1.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot1_name))
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot1_name))
 
     plt.figure(3)
     plt.clf()
@@ -263,7 +213,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal velocity of node 1")
     plt.legend()
     plot2_name = 'HorizontalVelocityNode1.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot2_name))
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot2_name))
 
     plt.figure(4)
     plt.clf()
@@ -275,7 +225,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal reaction force on nodes")
     plt.legend()
     plot3_name = 'HorizontalReactionForceNodes.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot3_name))
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot3_name))
 
     plt.figure(5)
     plt.clf()
@@ -287,7 +237,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Vertical reaction force on nodes")
     plt.legend()
     plot4_name = 'VerticalReactionForceNodes.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot4_name))
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot4_name))
 
     plt.figure(6)
     plt.clf()
@@ -298,8 +248,8 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.ylabel('rf [N]')
     plt.title("Magnitude of reaction force on nodes")
     plt.legend()
-    plot4_name = 'MagnitudeReactionForceNodes.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot4_name))
+    plot5_name = 'MagnitudeReactionForceNodes.png'
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot5_name))
 
     plt.figure(7)
     plt.clf()
@@ -310,24 +260,12 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.ylabel('Force [N]')
     plt.title("Internal forces of nodes")
     plt.legend()
-    plot4_name = 'ZVectorNode1.png'
-    plt.savefig('FinalImplementation/BC_Application/BCApplicationPlots/' + str(plot4_name))
+    plot6_name = 'In_force.png'
+    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot6_name))
     plt.show()
 
 
 if __name__ == '__main__':
-
-    #----------------------------------------------------------
-    # Inputs for using one node
-    # nv = 1
-    # deltaL=0.01
-    # ndof = 3 * nv
-    # q0 = np.zeros(ndof)
-    # q0[1] = 1
-    # q = q0.copy() 
-
-    #-----------------------------------------------------------
-    # Inputs for using more than one node
 
     # Mass
     RodLength = 0.10                          # Rod Length
@@ -346,6 +284,8 @@ if __name__ == '__main__':
     fix_nodes = max(fix_nodesNum)
     fix_ix = MMMadj.get_matind(fix_nodesNum)
     free_ix = np.setdiff1d(all_DOFs, fix_ix)
+
+    #------------------------------------------------------------
 
     # Straight line geometry
     # q0 = np.zeros(ndof)
@@ -370,7 +310,7 @@ if __name__ == '__main__':
     # time for straight line collision
     # totalTime = 0.064
     # time for curved line collision
-    totalTime = 0.06
+    totalTime = 0.041
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 
@@ -386,7 +326,7 @@ if __name__ == '__main__':
     EI = Y * b_len * h_len**3 / 12
     EA = Y * b_len * h_len
 
-    # Weight
+    # Applied external forces: weight + actuator movement
     W = np.zeros(ndof)
     g = np.array([0, -9.8, 0])  # m/s^2 - gravity
     grip_acc = np.array([-9.8, 0, 0])
