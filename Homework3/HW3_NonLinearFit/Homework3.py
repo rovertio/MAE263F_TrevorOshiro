@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # Iterating over different epoch and learning rate values to find combination
     epoch_trial = 10             # Number of trials for epoch values
     start_epoch = 0              # Intialized value of epoch number
-    epoch_inc = 50              # Scaling of epoch between trial epoch values
+    epoch_inc = 20              # Scaling of epoch between trial epoch values
 
     rate_trial = 4              # Number of trials for learning rare values
     start_rate = 0.047              # Initialized value of learning rate

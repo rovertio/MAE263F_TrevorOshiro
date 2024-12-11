@@ -134,9 +134,9 @@ if __name__ == '__main__':
     # Iterating over different epoch and learning rate values to find combination
     epoch_trial = 10             # Number of trials for epoch values
     start_epoch = 0              # Intialized value of epoch number
-    epoch_inc = 1000              # Scaling of epoch between trial epoch values
+    epoch_inc = 10              # Scaling of epoch between trial epoch values
 
-    rate_trial = 3              # Number of trials for learning rare values
+    rate_trial = 2              # Number of trials for learning rare values
     start_rate = 1              # Initialized value of learning rate
     rate_inc = 0.1           # Scaling of learning rate between trial rate values
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
 
             m_fit, b_fit, loss_fit = TrainingLoop(x_generated, y_generated, epochs, learning_rate)
 
-            if epochs % 5000 == 0:
+            if epochs % 20 == 0:
                 LinearPlotting(x_generated, m_fit, b_fit, epochs, learning_rate, loss_fit)
 
             loss_val[ii][jj] = loss_fit
