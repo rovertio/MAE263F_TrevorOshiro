@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from IPython.display import clear_output # Only for IPython
+# from IPython.display import clear_output # Only for IPython
 
 # Helper Functions for MMM
 # import HelperFunctions.collisions
@@ -40,7 +40,7 @@ def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime
   plt.xlabel('x [m]')
   plt.ylabel('y [m]')
   plot1b_name = 'ContactGripperGeom' + str(round(ctime, 5)) + '.png' 
-  plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/Combine_ContactPlots/' + str(plot1b_name))
+  # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/Combine_ContactPlots/' + str(plot1b_name))
   plt.show()
 
   return all_rfx, all_rfy, all_rfval
@@ -174,13 +174,23 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
         x2 = q[1::3]  # Selects every second element starting from index 1
         plt.clf()  # Clear the current figure
         plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-        plt.plot(xrec, yrec)
+        # plt.plot(xrec, yrec)
+
+        # Calculate Obstacle
+        y_obstacle = np.linspace(center_y - radius, center_y + radius, 1000)
+        x_obstacle = np.zeros(len(y_obstacle))
+        for i in range(len(y_obstacle)):
+           y_val = y_obstacle[i]
+           x_obstacle[i] = MMMadj.right_circle(y_val, radius, center_x, center_y)
+        plt.plot(x_obstacle, y_obstacle, 'r-')
+
         plt.title('time: ' + str(ctime))  # Format the title with the current time
         plt.xlim([-0.01, 0.011])
         plt.ylim([-0.11, 0.01])
         plt.axis('equal')  # Set equal scaling
         plt.xlabel('x [m]')
         plt.ylabel('y [m]')
+        plt.grid(True)
         plt.show()
 
 
@@ -203,7 +213,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal discplacement of node 1")
     plt.legend()
     plot1_name = 'HorizontalDisplacementNode1.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot1_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot1_name))
 
     plt.figure(3)
     plt.clf()
@@ -213,7 +223,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal velocity of node 1")
     plt.legend()
     plot2_name = 'HorizontalVelocityNode1.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot2_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot2_name))
 
     plt.figure(4)
     plt.clf()
@@ -225,7 +235,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Horizontal reaction force on nodes")
     plt.legend()
     plot3_name = 'HorizontalReactionForceNodes.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot3_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot3_name))
 
     plt.figure(5)
     plt.clf()
@@ -237,7 +247,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Vertical reaction force on nodes")
     plt.legend()
     plot4_name = 'VerticalReactionForceNodes.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot4_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot4_name))
 
     plt.figure(6)
     plt.clf()
@@ -249,7 +259,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Magnitude of reaction force on nodes")
     plt.legend()
     plot5_name = 'MagnitudeReactionForceNodes.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot5_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot5_name))
 
     plt.figure(7)
     plt.clf()
@@ -261,7 +271,7 @@ def plotting(all_pos, all_u, all_fin, all_rfx, all_rfy, all_rfval, all_zvec, tot
     plt.title("Internal forces of nodes")
     plt.legend()
     plot6_name = 'In_force.png'
-    plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot6_name))
+    # plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/' + str(plot6_name))
     plt.show()
 
 
@@ -278,6 +288,11 @@ if __name__ == '__main__':
     ne = nv - 1
     deltaL = RodLength / (nv - 1)            # Discrete length
     ndof = 3 * nv
+
+    # Obstacle parameters
+    radius = 0.05
+    center_x = -0.05
+    center_y = -0.05
 
     all_DOFs = np.arange(ndof)
     fix_nodesNum = np.array([1,2])
@@ -310,7 +325,7 @@ if __name__ == '__main__':
     # time for straight line collision
     # totalTime = 0.064
     # time for curved line collision
-    totalTime = 0.041
+    totalTime = 1
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 

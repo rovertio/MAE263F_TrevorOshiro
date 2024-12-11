@@ -105,6 +105,33 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
 
     return s_mat, z_vec
 
+import numpy as np
+
+def right_circle(y, radius, center_x, center_y):
+    """
+    Solves for the x values on the right side of the circle for a given y value.
+    """
+    distance_from_center = np.abs(y - center_y)
+    if distance_from_center <= radius:
+        x = center_x + np.sqrt(radius**2 - (y - center_y)**2)  # Right side x values
+        return x
+    else:
+        return None
+
+def right_circle_normal(y, radius, center_x, center_y):
+    """
+    Computes the normal vector to the right side of the circle at a given y value.
+    """
+    x_value = right_circle(y, radius, center_x, center_y)
+    if x_value is not None:
+        normal = np.array([x_value - center_x, y - center_y])
+        magnitude = np.linalg.norm(normal)
+        if magnitude != 0:
+            return normal / magnitude
+    else:
+        return None
+
+
 
 def test_col(q_test, r_force, close_d, close_off):
     # free_ind indicates nodes currently free that are being tested
@@ -118,38 +145,59 @@ def test_col(q_test, r_force, close_d, close_off):
     flag = 0
     close_flag = 0
     p = np.array([1,0,0])
+    radius = 0.05
+    center_x = -0.05
+    center_y = -0.05
 
     for ii in range(int(len(q_test)/3)):
-        # If the reaction force vector is zero
-        if np.round(np.sum(r_force)) == 0:
-            proj_vec = np.zeros(3)
-        else:
-            unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
-            proj_vec = ( np.dot(p, unit_r) ) * p
+        # Define ground and normal vector
+        node_x = q_test[ii*3]
+        node_y = q_test[ii*3 + 1]
 
-        #print(proj_vec[1])
-        #print(q_test[3*ii])
-        if q_test[3*ii] < 0 and q_test[3*ii + 1] < -0.02:
+        # CIRCLE COLLISION
+        circle_x = right_circle(node_y, radius, center_x, center_y)
+        circle_x_norm = right_circle_normal(node_y, radius, center_x, center_y)
+        if circle_x != None:
+            if node_x < circle_x: # Detects collision once node passes circle!
+                q_con[3 * ii] = circle_x  # Set position to circle
+                mat[ii] = np.array([[circle_x_norm[0], circle_x_norm[1], 0], [0, 0, 0]])
+                con_ind[ii] = ii + 1
+                flag = 1
+                print("Collision with circle!")
+
+        else:  # No collision or constraint
+            free_ind[ii] = ii + 1
+            mat[ii] = np.array([[0, 0, 0], [0, 0, 0]])
+        # # If the reaction force vector is zero
+        # if np.round(np.sum(r_force)) == 0:
+        #     proj_vec = np.zeros(3)
+        # else:
+        #     unit_r = (1/np.linalg.norm(r_force[(3*ii):(3*ii + 3)])) * r_force[(3*ii):(3*ii + 3)]
+        #     proj_vec = ( np.dot(p, unit_r) ) * p
+
+        # #print(proj_vec[1])
+        # #print(q_test[3*ii])
+        # if q_test[3*ii] < 0 and q_test[3*ii + 1] < -0.02:
             
-            q_con[3*ii] = 0
-            mat[ii] = np.array([p,[0,0,0]])
-            #print(mat)
-            con_ind[ii] = ii + 1
-            #print("Below surface")
-            flag = 1
-        elif q_test[3*ii] >= 0 and proj_vec[0] <= 0 and q_test[3*ii + 1] < -0.02:
-            free_ind[ii] = ii + 1
-            mat[ii] = np.array([[0,0,0],[0,0,0]])
-            #print("Negative reaction")
-            if q_test[3*ii] < (close_d + close_off):
-                free_ind[ii] = ii + 1
-                mat[ii] = np.array([[0,0,0],[0,0,0]])
-                close_flag = 1
-                print("Close")
-        else:
-            free_ind[ii] = ii + 1
-            mat[ii] = np.array([[0,0,0],[0,0,0]])
-            #print("Other")
+        #     q_con[3*ii] = 0
+        #     mat[ii] = np.array([p,[0,0,0]])
+        #     #print(mat)
+        #     con_ind[ii] = ii + 1
+        #     #print("Below surface")
+        #     flag = 1
+        # elif q_test[3*ii] >= 0 and proj_vec[0] <= 0 and q_test[3*ii + 1] < -0.02:
+        #     free_ind[ii] = ii + 1
+        #     mat[ii] = np.array([[0,0,0],[0,0,0]])
+        #     #print("Negative reaction")
+        #     if q_test[3*ii] < (close_d + close_off):
+        #         free_ind[ii] = ii + 1
+        #         mat[ii] = np.array([[0,0,0],[0,0,0]])
+        #         close_flag = 1
+        #         print("Close")
+        # else:
+        #     free_ind[ii] = ii + 1
+        #     mat[ii] = np.array([[0,0,0],[0,0,0]])
+        #     #print("Other")
             
 
     #print(free_ind)
