@@ -1,6 +1,15 @@
 # MAE263F_TrevorOshiro
 Repository for code and files written for the MAE263F class at UCLA. 
 
+### Homework 3 Submission:
+Libraries needed: Ipython.display, numpy, matplotlib.pyplot
+The scripts are split within the two directories within the Homework3 directory. The "HW3_LinearFit" directory contains the executable script Homework3.py that generates plots for the first deliverable of the homework. The "HW3_NonLinearFit" directory contains a Homework3.py script that is executable and generates plots for the second deliverable of the homework. When both of these scripts are run, the plots are stored within the "Plots" directory within the respective locations. 
+
+The graphs for the problem can be obtained through the execution of the Homework3.py are obtained as follows:
+- Upon execution of the script, values of learning rates and epoch numbers are iterated through and will show plots via a pop-up. Close the plots to finish execution of the program
+- Different values for learning rates and epochs can be adjusted by changing the values of the iteration count and increment values within the code. Note that the for loop may increment via multiplication or addition, so comment out lines for the desired method of incrementing.
+
+
 ### Midterm Report/Presentation Submission:
 All necessary files for the project progress as of the midterm can be found within the ProjectCodes directory under the MidtermConcept directory in this repository. The file for the presentation is the pdf file titled MidtermPresentation, and the file for the report is the pdf file titled as Midterm.
 
