@@ -10,6 +10,7 @@ This directory contains all the materials required for the final project submiss
 - Gripper Geometry: The "EndEffectorGrasp.py" would have to be adjusted. There is a section titled "Gripper prong geometry definition (displacement)" where the initial displacement values of the node can be adjusted to match the desired geometry. As such, an equation representing the curvature or shape would be helpful
 - Physical properties: The "EndEffectorGrasp.py" would have to be adjusted. There is a section titled "Physical properties of gripper prong", where properties such as the cross-sectional area and elasticity can be modified.
 - End-effector actuation: The "EndEffectorGrasp.py" would have to be adjusted. There is a section titled "Physical properties of gripper prong", where the external forces on the gripper prong can be adjusted. However, this script only accounts for constant acceleration as of this revision.
+- Simulation time and nodes: The "EndEffectorGrasp.py" would have to be adjusted. There is a section titled "Simulation execution properties" would have variables where node numbers, boundary conditions, and simulation time steps can be adjusted. The variable definin the smaller time steps for closer proximity to surface can be adjusted within the "simloop" function of the script
 
 ## Plot Generation
 - The python file titled "EndEffectorGrasp.py" is to be executed from either a code editor or command line
