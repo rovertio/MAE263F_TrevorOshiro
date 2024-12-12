@@ -105,6 +105,33 @@ def MMM_Szcalc(mat, con_ind, free_ind, q_con, q_old, u_old, dt, mass, force):
 
     return s_mat, z_vec
 
+import numpy as np
+
+def right_circle(y, radius, center_x, center_y):
+    """
+    Solves for the x values on the right side of the circle for a given y value.
+    """
+    distance_from_center = np.abs(y - center_y)
+    if distance_from_center <= radius:
+        x = center_x + np.sqrt(radius**2 - (y - center_y)**2)  # Right side x values
+        return x
+    else:
+        return None
+
+def right_circle_normal(y, radius, center_x, center_y):
+    """
+    Computes the normal vector to the right side of the circle at a given y value.
+    """
+    x_value = right_circle(y, radius, center_x, center_y)
+    if x_value is not None:
+        normal = np.array([x_value - center_x, y - center_y])
+        magnitude = np.linalg.norm(normal)
+        if magnitude != 0:
+            return normal / magnitude
+    else:
+        return None
+
+
 
 
 def right_circle(y, radius, center_x, center_y):

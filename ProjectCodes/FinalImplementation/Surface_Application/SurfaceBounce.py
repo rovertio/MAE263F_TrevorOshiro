@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from IPython.display import clear_output # Only for IPython
 
 # Helper Functions for MMM
 # import HelperFunctions.collisions
@@ -164,7 +163,7 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
 
 def plotting(all_pos, all_u, all_rf, all_zvec, coll_u, totalTime, Nsteps):
     # Plot
-    t = np.linspace(0, totalTime, Nsteps)
+    t = np.linspace(0, totalTime, len(all_pos))
     # print(len(all_pos))
     # print(len(t))
     plt.figure(2)
@@ -265,7 +264,7 @@ if __name__ == '__main__':
     maximum_iter = 100
     #totalTime = 0.453
     #totalTime = 0.5
-    totalTime = 7
+    totalTime = 2
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 
