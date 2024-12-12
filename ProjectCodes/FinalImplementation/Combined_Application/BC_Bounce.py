@@ -10,7 +10,7 @@ from HelperFunctions.BendingFun import getFbP1
 from HelperFunctions.StrechingFun import getFsP1
 
 
-def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime):
+def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime, xrec, yrec, x_obstacle, y_obstacle):
 
   # Obtain components of reaction force from the vector and compute magnitude
   for ii in range(int(len(q_old)/3)):
@@ -26,6 +26,8 @@ def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime
   x1 = q[0::3]                  # Selects every second element starting from index 0
   x2 = q[1::3]                  # Selects every second element starting from index 1
   plt.clf()                     # Clear the current figure
+  #plt.plot(xrec, yrec)
+  plt.plot(x_obstacle, y_obstacle, 'r-')
   plt.plot(x1, x2, 'k-')        # 'ko-' indicates black color with circle markers and solid lines
   for jj in range(int(len(q_old)/3)):
     if norm_rf[jj] == -5:
@@ -36,7 +38,7 @@ def plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime
   plt.title('time: ' + str(ctime))  # Format the title with the current time
   #plt.axis('equal')  # Set equal scaling
   plt.xlim([-0.01, 0.011])
-  plt.ylim([-0.11, 0.01])
+  plt.ylim([-0.08, -0.02])
   plt.xlabel('x [m]')
   plt.ylabel('y [m]')
   plot1b_name = 'ContactGripperGeom' + str(round(ctime, 5)) + '.png' 
@@ -77,6 +79,11 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
 
     # Coordinates for reference reactangle in contact
     xrec, yrec = [-0.04, 0, 0], [-0.02, -0.02, -0.1]
+    y_obstacle = np.linspace(-0.05 - 0.05, -0.05 + 0.05, 1000)
+    x_obstacle = np.zeros(len(y_obstacle))
+    for i in range(len(y_obstacle)):
+      y_val = y_obstacle[i]
+      x_obstacle[i] = MMMadj.right_circle(y_val, 0.05, -0.05, -0.05)
     
     r_force = np.zeros(3*nv)
     s_mat = np.eye(3*nv)
@@ -114,14 +121,14 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
             r_force, f_in, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, fix_ix)
             
             #--------------------------------------------------------
-            plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime)
+            plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime, xrec, yrec, x_obstacle, y_obstacle)
             #------------------------------------------------------
 
             # End simulation if excessive low amplitude oscillations
-            if timeStep - t_lastc < 200:
-                end_flag = 1
-            t_lastc = timeStep
-            break
+            # if timeStep - t_lastc < 200:
+            #     end_flag = 1
+            # t_lastc = timeStep
+            # break
           itt += 1
 
           if itt == int(dt_def/dt_c):
@@ -134,14 +141,18 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
           r_force, f_in, q, flag = MMMadj.MMM_cal(q0, q0, u, dt_def, mass, EI, EA, deltaL, force, tol, s_mat, z_vec, mat, fix_ix)
               
           #-----------------------------------------------
-          plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime)
+          if timeStep - t_lastc > 100:
+            plot_contact(q, q_old, all_rfx, all_rfy, all_rfval, r_force, timeStep, ctime, xrec, yrec, x_obstacle, y_obstacle)
+            #t_lastc = timeStep
           #--------------------------------------------------------
 
           # End simulation if excessive low amplitude oscillations
-          if timeStep - t_lastc < 200:
-            end_flag = 1
-            t_lastc = timeStep
-            break
+          # if timeStep - t_lastc < 200:
+          #   end_flag = 1
+          #   #t_lastc = timeStep
+          #   break
+
+          t_lastc = timeStep
         
         u = (q - q0) / dt_def                     # update velocity
         print("Velocity: " + str(u))
@@ -174,13 +185,17 @@ def simloop(q_guess, q_old, u_old, dt, mass, EI, EA, deltaL, force, tol, mat, nv
         x2 = q[1::3]  # Selects every second element starting from index 1
         plt.clf()  # Clear the current figure
         plt.plot(x1, x2, 'ko-')  # 'ko-' indicates black color with circle markers and solid lines
-        plt.plot(xrec, yrec)
+        # plt.plot(xrec, yrec)
+        plt.plot(x_obstacle, y_obstacle, 'r-')
         plt.title('time: ' + str(ctime))  # Format the title with the current time
         plt.xlim([-0.01, 0.011])
         plt.ylim([-0.11, 0.01])
         plt.axis('equal')  # Set equal scaling
         plt.xlabel('x [m]')
         plt.ylabel('y [m]')
+        plot1_name = 'Geom' + str(ctime) + '.png'
+        plt.savefig('FinalImplementation/Combined_Application/CombineApplicationPlots/Combine_GeomPlots/' + str(plot1_name))
+
         plt.show()
 
 
@@ -310,7 +325,8 @@ if __name__ == '__main__':
     # time for straight line collision
     # totalTime = 0.064
     # time for curved line collision
-    totalTime = 0.041
+    #totalTime = 0.041
+    totalTime = 0.06
     Nsteps = round(totalTime / dt)
     tol_dq = 1e-6 # Small length value
 
