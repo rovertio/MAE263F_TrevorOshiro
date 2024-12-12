@@ -1,6 +1,11 @@
 # MAE263F_TrevorOshiro
 Repository for code and files written for the MAE263F class at UCLA. 
 
+### Final Project Submission
+- The necessary files for submission can be found within the "Combined_Application" sub-directory of the "FinalProject" directory in this repository
+- A separate READme.md file is within this directory with a procedure for executing the simulation and adjusting parameters for the simulation executions
+- One would need to have the entire "FinalProject" directory on their computer to run the simulation, as helper functions are found within the "MMM_combine.py" file. 
+
 ### Homework 3 Submission:
 Libraries needed: Ipython.display, numpy, matplotlib.pyplot
 The scripts are split within the two directories within the Homework3 directory. The "HW3_LinearFit" directory contains the executable script Homework3.py that generates plots for the first deliverable of the homework. The "HW3_NonLinearFit" directory contains a Homework3.py script that is executable and generates plots for the second deliverable of the homework. When both of these scripts are run, the plots are stored within the "Plots" directory within the respective locations. 
